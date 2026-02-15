@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { cookieUtils } from '@/utils/cookieUtils';
 import { setNotificationRefreshCallback } from '@/utils/notificationRefresh';
 import { apiRequest, fetchApiConfig } from '@/config/api';
@@ -28,7 +28,6 @@ export const useNotifications = (autoRefresh = true, refreshInterval = 30000) =>
   const [error, setError] = useState<string | null>(null);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
   const [isCircuitOpen, setIsCircuitOpen] = useState(false);
-  const processedPlanNotifIds = useRef<Set<number>>(new Set());
 
   const getAuthHeaders = () => {
     // Tentar múltiplas formas de obter o token
@@ -90,44 +89,27 @@ export const useNotifications = (autoRefresh = true, refreshInterval = 30000) =>
       console.log('🔔 Raw API response:', data);
       
       if (data.success) {
-        let newNotifications: Notification[] = [];
-        let newUnreadCount = 0;
-        
         // Verificar se data.data é um objeto com notifications ou se é direto a lista
         if (data.data && Array.isArray(data.data.notifications)) {
+          // Formato: { data: { notifications: [...], unread_count: N } }
           const result: NotificationResponse = data.data;
           console.log('🔔 Notifications encontradas:', result.notifications.length);
           console.log('🔔 Unread count:', result.unread_count);
           console.log('🔔 Notifications details:', result.notifications);
-          newNotifications = result.notifications || [];
-          newUnreadCount = result.unread_count || 0;
+          setNotifications(result.notifications || []);
+          setUnreadCount(result.unread_count || 0);
         } else if (data.data && Array.isArray(data.data)) {
+          // Formato: { data: [...] } - lista direto
           console.log('🔔 Direct notifications array:', data.data.length);
           console.log('🔔 Direct notifications details:', data.data);
-          newNotifications = data.data;
-          newUnreadCount = data.data.filter((n: Notification) => !n.is_read).length;
+          const unreadCount = data.data.filter((n: Notification) => !n.is_read).length;
+          console.log('🔔 Calculated unread count:', unreadCount);
+          setNotifications(data.data);
+          setUnreadCount(unreadCount);
         } else {
           console.warn('🔔 Formato de resposta inesperado:', data);
-        }
-        
-        setNotifications(newNotifications);
-        setUnreadCount(newUnreadCount);
-        
-        // Detectar notificações NOVAS de atualização de plano e disparar evento apenas uma vez
-        const planUpdateNotifications = newNotifications.filter(
-          n => !n.is_read && !processedPlanNotifIds.current.has(n.id) && (
-            n.title?.includes('Plano Atualizado') || 
-            n.title?.includes('Plano Ativado') ||
-            (n.type === 'system' && n.message?.includes('plano'))
-          )
-        );
-        
-        if (planUpdateNotifications.length > 0) {
-          planUpdateNotifications.forEach(n => processedPlanNotifIds.current.add(n.id));
-          console.log('🔔 Nova notificação de atualização de plano detectada, disparando evento planUpdatedByAdmin');
-          window.dispatchEvent(new CustomEvent('planUpdatedByAdmin', {
-            detail: { notifications: planUpdateNotifications }
-          }));
+          setNotifications([]);
+          setUnreadCount(0);
         }
       } else {
         throw new Error(data.message || 'Erro ao buscar notificações');
