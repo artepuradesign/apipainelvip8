@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Calendar, Clock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Calendar, Clock, Wallet } from "lucide-react";
 import { getFullApiUrl } from '@/utils/apiHelper';
 import type { User } from "@/types/user";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -32,10 +33,14 @@ interface EditUserModalProps {
 const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUserModalProps) => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
+  const [addPlanBalance, setAddPlanBalance] = useState(false);
+  const [selectedPlanPrice, setSelectedPlanPrice] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
       fetchPlans();
+      setAddPlanBalance(false);
+      setSelectedPlanPrice(0);
     }
   }, [isOpen]);
 
@@ -59,7 +64,24 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const handlePlanChange = (value: string) => {
     const selectedPlan = plans.find(p => p.name === value);
     const discount = selectedPlan?.discount_percentage ?? getDiscount(value);
-    onUserChange({ ...user, plan: value, planDiscount: discount });
+    const price = selectedPlan?.price || 0;
+    setSelectedPlanPrice(price);
+    
+    if (addPlanBalance && price > 0) {
+      onUserChange({ ...user, plan: value, planDiscount: discount, planBalance: (user.planBalance || 0) + price });
+    } else {
+      onUserChange({ ...user, plan: value, planDiscount: discount });
+    }
+  };
+
+  const handleToggleAddPlanBalance = (checked: boolean) => {
+    setAddPlanBalance(checked);
+    if (checked && selectedPlanPrice > 0) {
+      onUserChange({ ...user, planBalance: (user.planBalance || 0) + selectedPlanPrice });
+    } else if (!checked && selectedPlanPrice > 0) {
+      // Reverter o saldo adicionado
+      onUserChange({ ...user, planBalance: Math.max(0, (user.planBalance || 0) - selectedPlanPrice) });
+    }
   };
 
   return (
@@ -139,6 +161,25 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                   </SelectContent>
                 </Select>
               )}
+              {/* Opção para adicionar saldo do plano */}
+              <div className="sm:col-span-2 flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <Label className="text-xs font-medium">Adicionar valor do plano ao saldo</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      {selectedPlanPrice > 0 
+                        ? `Será adicionado R$ ${selectedPlanPrice.toFixed(2)} ao saldo do plano`
+                        : 'Selecione um plano diferente para habilitar'}
+                    </p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={addPlanBalance}
+                  onCheckedChange={handleToggleAddPlanBalance}
+                  disabled={selectedPlanPrice <= 0}
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="edit-plan-discount" className="text-xs text-emerald-600 dark:text-emerald-400">
