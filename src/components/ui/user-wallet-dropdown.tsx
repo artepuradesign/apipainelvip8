@@ -22,9 +22,9 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, profile } = useAuth();
+  const { user, profile, refreshUser } = useAuth();
   const { balance, isLoading, loadBalance } = useWalletBalance();
-  const { hasActiveSubscription, subscription, planInfo, discountPercentage } = useUserSubscription();
+  const { hasActiveSubscription, subscription, planInfo, discountPercentage, refreshSubscription } = useUserSubscription();
   const navigate = useNavigate();
 
   const formatBrazilianCurrency = (value: number) => {
@@ -65,14 +65,16 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
     }
   };
 
-  const handleRefreshBalance = () => {
-    loadBalance();
-    toast.success('Saldo atualizado!');
+  const handleRefreshBalance = async () => {
+    await Promise.all([
+      loadBalance(),
+      refreshUser(),
+      refreshSubscription()
+    ]);
+    toast.success('Dados atualizados!');
     
-    // Force re-animation by updating the key prop on SimpleCounter components
-    const timestamp = Date.now();
     window.dispatchEvent(new CustomEvent('balanceUpdated', { 
-      detail: { timestamp, shouldAnimate: true } 
+      detail: { timestamp: Date.now(), shouldAnimate: true } 
     }));
   };
 
