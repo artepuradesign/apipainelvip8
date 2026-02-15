@@ -1,12 +1,12 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Calendar, Clock, Wallet } from "lucide-react";
+import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X } from "lucide-react";
 import { getFullApiUrl } from '@/utils/apiHelper';
 import type { User } from "@/types/user";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -35,12 +35,14 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [addPlanBalance, setAddPlanBalance] = useState(false);
   const [selectedPlanPrice, setSelectedPlanPrice] = useState(0);
+  const originalPlanBalanceRef = useRef<number>(0);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && user) {
       fetchPlans();
       setAddPlanBalance(false);
       setSelectedPlanPrice(0);
+      originalPlanBalanceRef.current = user.planBalance || 0;
     }
   }, [isOpen]);
 
@@ -66,183 +68,239 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     const discount = selectedPlan?.discount_percentage ?? getDiscount(value);
     const price = selectedPlan?.price || 0;
     setSelectedPlanPrice(price);
-    
-    if (addPlanBalance && price > 0) {
-      onUserChange({ ...user, plan: value, planDiscount: discount, planBalance: (user.planBalance || 0) + price });
-    } else {
-      onUserChange({ ...user, plan: value, planDiscount: discount });
-    }
+
+    // Sempre resetar o saldo do plano ao valor original ao trocar de plano
+    const newPlanBalance = addPlanBalance && price > 0
+      ? originalPlanBalanceRef.current + price
+      : originalPlanBalanceRef.current;
+
+    onUserChange({ ...user, plan: value, planDiscount: discount, planBalance: newPlanBalance });
   };
 
   const handleToggleAddPlanBalance = (checked: boolean) => {
     setAddPlanBalance(checked);
     if (checked && selectedPlanPrice > 0) {
-      onUserChange({ ...user, planBalance: (user.planBalance || 0) + selectedPlanPrice });
-    } else if (!checked && selectedPlanPrice > 0) {
-      // Reverter o saldo adicionado
-      onUserChange({ ...user, planBalance: Math.max(0, (user.planBalance || 0) - selectedPlanPrice) });
+      onUserChange({ ...user, planBalance: originalPlanBalanceRef.current + selectedPlanPrice });
+    } else {
+      onUserChange({ ...user, planBalance: originalPlanBalanceRef.current });
     }
   };
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const daysRemaining = user.planEndDate
+    ? Math.max(0, differenceInDays(parseISO(user.planEndDate), new Date()))
+    : null;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-base">Editar Usuário</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-2xl p-0 gap-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="px-5 pt-5 pb-4 border-b border-border bg-muted/30">
+          <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+            <UserIcon className="h-5 w-5 text-primary" />
+            Editar Usuário
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">{user.name} • {user.email}</p>
         </DialogHeader>
-        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="edit-name" className="text-xs">Nome Completo</Label>
-              <Input
-                id="edit-name"
-                className="h-8 text-sm"
-                value={user.name}
-                onChange={(e) => onUserChange({ ...user, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-email" className="text-xs">E-mail</Label>
-              <Input
-                id="edit-email"
-                className="h-8 text-sm"
-                value={user.email}
-                onChange={(e) => onUserChange({ ...user, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-balance" className="text-xs">Saldo da Carteira</Label>
-              <Input
-                id="edit-balance"
-                type="number"
-                step="0.01"
-                className="h-8 text-sm"
-                value={user.balance}
-                onChange={(e) => onUserChange({ ...user, balance: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-plan-balance" className="text-xs">Saldo do Plano</Label>
-              <Input
-                id="edit-plan-balance"
-                type="number"
-                step="0.01"
-                className="h-8 text-sm"
-                value={user.planBalance || 0}
-                onChange={(e) => onUserChange({ ...user, planBalance: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-plan" className="text-xs">Plano</Label>
-              {loadingPlans ? (
-                <div className="flex items-center gap-2 h-8 px-3 border rounded-md">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span className="text-xs text-muted-foreground">Carregando...</span>
-                </div>
-              ) : (
-                <Select
-                  value={user.plan}
-                  onValueChange={handlePlanChange}
-                >
-                  <SelectTrigger id="edit-plan" className="h-8 text-sm">
-                    <SelectValue placeholder="Selecione um plano" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.name}>
-                        {plan.name} - {plan.priceFormatted}
-                      </SelectItem>
-                    ))}
-                    {plans.length === 0 && (
-                      <SelectItem value={user.plan} disabled={false}>
-                        {user.plan}
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
-              {/* Opção para adicionar saldo do plano */}
-              <div className="sm:col-span-2 flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <div>
-                    <Label className="text-xs font-medium">Adicionar valor do plano ao saldo</Label>
-                    <p className="text-[10px] text-muted-foreground">
-                      {selectedPlanPrice > 0 
-                        ? `Será adicionado R$ ${selectedPlanPrice.toFixed(2)} ao saldo do plano`
-                        : 'Selecione um plano diferente para habilitar'}
-                    </p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={addPlanBalance}
-                  onCheckedChange={handleToggleAddPlanBalance}
-                  disabled={selectedPlanPrice <= 0}
+
+        <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+          {/* Seção: Dados Pessoais */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dados Pessoais</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-name" className="text-xs flex items-center gap-1.5">
+                  <UserIcon className="h-3 w-3" /> Nome Completo
+                </Label>
+                <Input
+                  id="edit-name"
+                  className="h-9 text-sm"
+                  value={user.name}
+                  onChange={(e) => onUserChange({ ...user, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-email" className="text-xs flex items-center gap-1.5">
+                  <Mail className="h-3 w-3" /> E-mail
+                </Label>
+                <Input
+                  id="edit-email"
+                  className="h-9 text-sm"
+                  value={user.email}
+                  onChange={(e) => onUserChange({ ...user, email: e.target.value })}
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="edit-plan-discount" className="text-xs text-emerald-600 dark:text-emerald-400">
-                Desconto do Plano (%)
-              </Label>
-              <Input
-                id="edit-plan-discount"
-                type="number"
-                min="0"
-                max="100"
-                className="h-8 text-sm"
-                value={user.planDiscount || 0}
-                onChange={(e) => onUserChange({ ...user, planDiscount: parseInt(e.target.value) || 0 })}
+          </div>
+
+          {/* Seção: Financeiro */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Financeiro</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-balance" className="text-xs flex items-center gap-1.5">
+                  <CreditCard className="h-3 w-3" /> Saldo da Carteira
+                </Label>
+                <Input
+                  id="edit-balance"
+                  type="number"
+                  step="0.01"
+                  className="h-9 text-sm"
+                  value={user.balance}
+                  onChange={(e) => onUserChange({ ...user, balance: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-plan-balance" className="text-xs flex items-center gap-1.5">
+                  <Wallet className="h-3 w-3" /> Saldo do Plano
+                </Label>
+                <Input
+                  id="edit-plan-balance"
+                  type="number"
+                  step="0.01"
+                  className="h-9 text-sm"
+                  value={user.planBalance || 0}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    originalPlanBalanceRef.current = val;
+                    onUserChange({ ...user, planBalance: val });
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Seção: Plano */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plano</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-plan" className="text-xs">Plano Atual</Label>
+                {loadingPlans ? (
+                  <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="text-xs text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <Select value={user.plan} onValueChange={handlePlanChange}>
+                    <SelectTrigger id="edit-plan" className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione um plano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.name}>
+                          {plan.name} - {plan.priceFormatted}
+                        </SelectItem>
+                      ))}
+                      {plans.length === 0 && (
+                        <SelectItem value={user.plan} disabled={false}>
+                          {user.plan}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-plan-discount" className="text-xs flex items-center gap-1.5">
+                  <Percent className="h-3 w-3" /> Desconto (%)
+                </Label>
+                <Input
+                  id="edit-plan-discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="h-9 text-sm"
+                  value={user.planDiscount || 0}
+                  onChange={(e) => onUserChange({ ...user, planDiscount: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            {/* Switch adicionar saldo do plano */}
+            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                  <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="min-w-0">
+                  <Label className="text-xs font-medium block">Adicionar valor do plano ao saldo</Label>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {selectedPlanPrice > 0
+                      ? `Será adicionado ${formatCurrency(selectedPlanPrice)} ao saldo do plano`
+                      : 'Selecione um plano para habilitar'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={addPlanBalance}
+                onCheckedChange={handleToggleAddPlanBalance}
+                disabled={selectedPlanPrice <= 0}
               />
             </div>
-            <div>
-              <Label htmlFor="edit-plan-start" className="text-xs flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> Início do Plano
-              </Label>
-              <Input
-                id="edit-plan-start"
-                className="h-8 text-sm bg-muted cursor-default"
-                value={user.planStartDate ? format(parseISO(user.planStartDate), 'dd/MM/yyyy', { locale: ptBR }) : 'Não definido'}
-                readOnly
-              />
+
+            {/* Datas do plano */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> Início
+                </Label>
+                <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
+                  {user.planStartDate ? format(parseISO(user.planStartDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> Término
+                </Label>
+                <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
+                  {user.planEndDate ? format(parseISO(user.planEndDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Dias Restantes
+                </Label>
+                <div className={`h-9 text-sm px-3 flex items-center rounded-md border bg-muted font-semibold ${
+                  daysRemaining !== null && daysRemaining <= 7 ? 'text-destructive' : 'text-primary'
+                }`}>
+                  {daysRemaining !== null ? `${daysRemaining} dias` : '—'}
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="edit-plan-end" className="text-xs flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> Término do Plano
+          </div>
+
+          {/* Seção: Observações */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Observações</h3>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-notes" className="text-xs flex items-center gap-1.5">
+                <FileText className="h-3 w-3" /> Notas
               </Label>
-              <Input
-                id="edit-plan-end"
-                className="h-8 text-sm bg-muted cursor-default"
-                value={user.planEndDate ? format(parseISO(user.planEndDate), 'dd/MM/yyyy', { locale: ptBR }) : 'Não definido'}
-                readOnly
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-days-remaining" className="text-xs flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Dias Restantes
-              </Label>
-              <Input
-                id="edit-days-remaining"
-                className="h-8 text-sm bg-muted cursor-default"
-                value={user.planEndDate ? Math.max(0, differenceInDays(parseISO(user.planEndDate), new Date())) + ' dias' : 'N/A'}
-                readOnly
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-notes" className="text-xs">Observações</Label>
               <Input
                 id="edit-notes"
-                className="h-8 text-sm"
+                className="h-9 text-sm"
                 value={user.notes || ''}
                 onChange={(e) => onUserChange({ ...user, notes: e.target.value })}
                 placeholder="Observação para o usuário..."
               />
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
-            <Button size="sm" onClick={onSave}>Salvar</Button>
-            <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
-          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-border bg-muted/30">
+          <Button size="sm" variant="outline" onClick={onClose} className="gap-1.5">
+            <X className="h-3.5 w-3.5" />
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={onSave} className="gap-1.5">
+            <Save className="h-3.5 w-3.5" />
+            Salvar
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
