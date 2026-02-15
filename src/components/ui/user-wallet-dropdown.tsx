@@ -34,6 +34,13 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
     });
   };
 
+  // Auto-refresh data when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      Promise.all([loadBalance(), refreshUser(), refreshSubscription()]);
+    }
+  }, [isOpen]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
