@@ -179,7 +179,7 @@ const GestaoUsuarios = () => {
     setLoading(true);
     
     try {
-      const userData: Partial<AdminUserData> & { notes?: string; plan_discount?: number } = {
+      const userData: Partial<AdminUserData> & { notes?: string; plan_discount?: number; data_inicio?: string; data_fim?: string } = {
         email: editingUser.email,
         full_name: editingUser.name,
         user_role: editingUser.role as 'assinante' | 'suporte' | 'admin',
@@ -190,7 +190,9 @@ const GestaoUsuarios = () => {
         telefone: editingUser.phone,
         endereco: editingUser.address,
         status: editingUser.isActive ? 'ativo' : 'inativo',
-        plan_discount: editingUser.planDiscount || 0
+        plan_discount: editingUser.planDiscount || 0,
+        data_inicio: editingUser.planStartDate,
+        data_fim: editingUser.planEndDate,
       };
 
       // Enviar observações para gerar notificação no backend
