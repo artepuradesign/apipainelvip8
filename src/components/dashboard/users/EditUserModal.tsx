@@ -20,6 +20,7 @@ interface Plan {
   price: number;
   priceFormatted: string;
   discount_percentage?: number;
+  duration_days?: number;
 }
 
 interface EditUserModalProps {
@@ -34,15 +35,23 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [addPlanBalance, setAddPlanBalance] = useState(false);
+  const [addPlanDays, setAddPlanDays] = useState(false);
   const [selectedPlanPrice, setSelectedPlanPrice] = useState(0);
+  const [selectedPlanDays, setSelectedPlanDays] = useState(0);
   const originalPlanBalanceRef = useRef<number>(0);
+  const originalPlanStartRef = useRef<string | undefined>(undefined);
+  const originalPlanEndRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (isOpen && user) {
       fetchPlans();
       setAddPlanBalance(false);
+      setAddPlanDays(false);
       setSelectedPlanPrice(0);
+      setSelectedPlanDays(0);
       originalPlanBalanceRef.current = user.planBalance || 0;
+      originalPlanStartRef.current = user.planStartDate;
+      originalPlanEndRef.current = user.planEndDate;
     }
   }, [isOpen]);
 
@@ -67,14 +76,26 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     const selectedPlan = plans.find(p => p.name === value);
     const discount = selectedPlan?.discount_percentage ?? getDiscount(value);
     const price = selectedPlan?.price || 0;
+    const days = selectedPlan?.duration_days || 0;
     setSelectedPlanPrice(price);
+    setSelectedPlanDays(days);
 
-    // Sempre resetar o saldo do plano ao valor original ao trocar de plano
     const newPlanBalance = addPlanBalance && price > 0
       ? originalPlanBalanceRef.current + price
       : originalPlanBalanceRef.current;
 
-    onUserChange({ ...user, plan: value, planDiscount: discount, planBalance: newPlanBalance });
+    const updates: Partial<User> = { plan: value, planDiscount: discount, planBalance: newPlanBalance };
+
+    if (addPlanDays && days > 0) {
+      const today = new Date();
+      updates.planStartDate = format(today, 'yyyy-MM-dd');
+      updates.planEndDate = format(new Date(today.getTime() + days * 86400000), 'yyyy-MM-dd');
+    } else {
+      updates.planStartDate = originalPlanStartRef.current;
+      updates.planEndDate = originalPlanEndRef.current;
+    }
+
+    onUserChange({ ...user, ...updates } as User);
   };
 
   const handleToggleAddPlanBalance = (checked: boolean) => {
@@ -83,6 +104,24 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       onUserChange({ ...user, planBalance: originalPlanBalanceRef.current + selectedPlanPrice });
     } else {
       onUserChange({ ...user, planBalance: originalPlanBalanceRef.current });
+    }
+  };
+
+  const handleToggleAddPlanDays = (checked: boolean) => {
+    setAddPlanDays(checked);
+    if (checked && selectedPlanDays > 0) {
+      const today = new Date();
+      onUserChange({
+        ...user,
+        planStartDate: format(today, 'yyyy-MM-dd'),
+        planEndDate: format(new Date(today.getTime() + selectedPlanDays * 86400000), 'yyyy-MM-dd'),
+      });
+    } else {
+      onUserChange({
+        ...user,
+        planStartDate: originalPlanStartRef.current,
+        planEndDate: originalPlanEndRef.current,
+      });
     }
   };
 
@@ -242,7 +281,28 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
               />
             </div>
 
-            {/* Datas do plano */}
+            {/* Switch adicionar dias do plano */}
+            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <Label className="text-xs font-medium block">Adicionar dias do plano</Label>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {selectedPlanDays > 0
+                      ? `Será definido ${selectedPlanDays} dias a partir de hoje`
+                      : 'Selecione um plano para habilitar'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={addPlanDays}
+                onCheckedChange={handleToggleAddPlanDays}
+                disabled={selectedPlanDays <= 0}
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1">
