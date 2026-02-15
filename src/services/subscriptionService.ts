@@ -7,15 +7,19 @@ export interface UserSubscription {
   user_id: number;
   plan_id: number;
   status: 'active' | 'cancelled' | 'expired' | 'suspended';
-  starts_at: string;
-  ends_at: string;
-  auto_renew: boolean;
+  starts_at?: string;
+  ends_at?: string;
+  start_date?: string;
+  end_date?: string;
+  auto_renew?: boolean;
   payment_method?: string;
   external_subscription_id?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   plan_name?: string;
   discount_percentage?: number;
+  description?: string;
+  price?: number;
 }
 
 export interface PlanInfo {
