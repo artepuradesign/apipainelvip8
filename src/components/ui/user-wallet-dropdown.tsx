@@ -241,7 +241,7 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Plano</span>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {user.tipoplano || 'Pré-Pago'}
+                        {subscription?.plan_name || user.tipoplano || 'Pré-Pago'}
                       </div>
                     </div>
                     
@@ -255,30 +255,34 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Inicio do Plano</span>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {(user as any).data_inicio
-                          ? format(new Date((user as any).data_inicio), 'dd/MM/yyyy', { locale: ptBR })
-                          : '-'
-                        }
+                        {(() => {
+                          const startDate = subscription?.starts_at || user.data_inicio;
+                          return startDate
+                            ? format(new Date(startDate), 'dd/MM/yyyy', { locale: ptBR })
+                            : '-';
+                        })()}
                       </div>
                     </div>
                     
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Termino do Plano</span>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {(user as any).data_fim
-                          ? format(new Date((user as any).data_fim), 'dd/MM/yyyy', { locale: ptBR })
-                          : '-'
-                        }
+                        {(() => {
+                          const endDate = subscription?.ends_at || user.data_fim;
+                          return endDate
+                            ? format(new Date(endDate), 'dd/MM/yyyy', { locale: ptBR })
+                            : '-';
+                        })()}
                       </div>
                     </div>
                     
                     {/* Dias Restantes */}
-                    {(user as any).data_fim && (
+                    {(subscription?.ends_at || user.data_fim) && (
                       <div className="flex justify-between items-center pt-1">
                         <span className="text-muted-foreground font-semibold">Dias Restantes</span>
                         <div className="font-bold text-blue-600 dark:text-blue-400">
                           {(() => {
-                            const endDate = new Date((user as any).data_fim);
+                            const endDate = new Date(subscription?.ends_at || (user as any).data_fim);
                             const now = new Date();
                             const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
                             return daysRemaining > 0 ? `${daysRemaining} dias` : 'Expirado';
