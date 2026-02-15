@@ -48,6 +48,26 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
     };
   }, []);
 
+  // Auto-refresh quando admin atualizar o plano (detectado via notificações)
+  useEffect(() => {
+    const handlePlanUpdatedByAdmin = async () => {
+      console.log('🔄 [DROPDOWN] Plano atualizado pelo admin detectado, atualizando dados...');
+      await Promise.all([
+        loadBalance(),
+        refreshUser(),
+        refreshSubscription()
+      ]);
+      window.dispatchEvent(new CustomEvent('balanceUpdated', { 
+        detail: { timestamp: Date.now(), shouldAnimate: true } 
+      }));
+    };
+
+    window.addEventListener('planUpdatedByAdmin', handlePlanUpdatedByAdmin as EventListener);
+    return () => {
+      window.removeEventListener('planUpdatedByAdmin', handlePlanUpdatedByAdmin as EventListener);
+    };
+  }, [loadBalance, refreshUser, refreshSubscription]);
+
   const handleAddBalance = () => {
     navigate('/dashboard/adicionar-saldo');
     setIsOpen(false);
