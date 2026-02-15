@@ -18,6 +18,7 @@ interface Plan {
   slug: string;
   price: number;
   priceFormatted: string;
+  discount_percentage?: number;
 }
 
 interface EditUserModalProps {
@@ -56,7 +57,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   if (!user) return null;
 
   const handlePlanChange = (value: string) => {
-    const discount = getDiscount(value);
+    const selectedPlan = plans.find(p => p.name === value);
+    const discount = selectedPlan?.discount_percentage ?? getDiscount(value);
     onUserChange({ ...user, plan: value, planDiscount: discount });
   };
 
