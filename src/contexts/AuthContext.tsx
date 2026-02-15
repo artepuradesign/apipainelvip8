@@ -24,6 +24,7 @@ type AuthContextType = {
   loading: boolean;
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; redirectTo?: string; message?: string }>;
+  refreshUser: () => Promise<void>;
   isSupport: boolean;
 };
 
@@ -35,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   isSupport: false,
   signOut: async () => {},
   signIn: async () => ({ success: false }),
+  refreshUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -250,13 +252,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      console.log('🔄 [AUTH] Atualizando dados do usuário...');
+      const response = await userApiService.getUserData();
+      if (response.success && response.data) {
+        const apiUser = response.data as unknown as ApiUser;
+        setUserData(apiUser);
+        console.log('✅ [AUTH] Dados do usuário atualizados');
+      }
+    } catch (error) {
+      console.warn('⚠️ [AUTH] Erro ao atualizar dados do usuário:', error);
+    }
+  };
+
   const signOut = async () => {
     try {
       console.log('🔄 [AUTH] Iniciando logout MANUAL...');
       
       const sessionToken = cookieUtils.get('session_token');
       
-      // Fazer logout no servidor
       if (sessionToken) {
         try {
           await authApiService.logout(sessionToken);
@@ -266,14 +281,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
       
-      // Limpar TODOS os dados locais
       console.log('🧹 [AUTH] Limpando todos os dados locais...');
       
       cookieUtils.remove('session_token');
       cookieUtils.remove('current_user_id');
       cookieUtils.remove('auth_user');
       
-      // Limpar localStorage também
       const userId = cookieUtils.get('current_user_id');
       if (userId) {
         localStorage.removeItem(`last_activity_${userId}`);
@@ -283,7 +296,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('current_user_id');
       localStorage.removeItem('token_last_validation');
       
-      // Limpar estados
       setUser(null);
       setProfile(null);
       setSession(null);
@@ -305,6 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         signOut,
         signIn,
+        refreshUser,
         isSupport,
       }}
     >
