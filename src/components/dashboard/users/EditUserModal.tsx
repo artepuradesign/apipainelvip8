@@ -261,48 +261,34 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
               </div>
             </div>
 
-            {/* Switch adicionar saldo do plano */}
-            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/40">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="shrink-0 h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                  <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                </div>
+            {/* Switches: Adicionar valor e dias */}
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium block">Adicionar valor do plano ao saldo</Label>
+                  <Label className="text-xs font-medium block">Adicionar valor</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {selectedPlanPrice > 0
-                      ? `Será adicionado ${formatCurrency(selectedPlanPrice)} ao saldo do plano`
-                      : 'Selecione um plano para habilitar'}
+                    {selectedPlanPrice > 0 ? formatCurrency(selectedPlanPrice) : 'Selecione um plano'}
                   </p>
                 </div>
+                <Switch
+                  checked={addPlanBalance}
+                  onCheckedChange={handleToggleAddPlanBalance}
+                  disabled={selectedPlanPrice <= 0}
+                />
               </div>
-              <Switch
-                checked={addPlanBalance}
-                onCheckedChange={handleToggleAddPlanBalance}
-                disabled={selectedPlanPrice <= 0}
-              />
-            </div>
-
-            {/* Switch adicionar dias do plano */}
-            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/40">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="shrink-0 h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium block">Adicionar dias do plano</Label>
+                  <Label className="text-xs font-medium block">Adicionar dias</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {selectedPlanDays > 0
-                      ? `Será definido ${selectedPlanDays} dias a partir de hoje`
-                      : 'Selecione um plano para habilitar'}
+                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias` : 'Selecione um plano'}
                   </p>
                 </div>
+                <Switch
+                  checked={addPlanDays}
+                  onCheckedChange={handleToggleAddPlanDays}
+                  disabled={selectedPlanDays <= 0}
+                />
               </div>
-              <Switch
-                checked={addPlanDays}
-                onCheckedChange={handleToggleAddPlanDays}
-                disabled={selectedPlanDays <= 0}
-              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
