@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import UserStatsCards from '@/components/dashboard/users/UserStatsCards';
 import UserFilters from '@/components/dashboard/users/UserFilters';
-import AddUserForm from '@/components/dashboard/users/AddUserForm';
+import AddUserModal from '@/components/dashboard/users/AddUserModal';
 import UserListItem from '@/components/dashboard/users/UserListItem';
 import UserDetailsModal from '@/components/dashboard/users/UserDetailsModal';
 import EditUserModal from '@/components/dashboard/users/EditUserModal';
@@ -405,14 +405,13 @@ const GestaoUsuarios = () => {
             setFilterStatus={setFilterStatus}
           />
 
-          {showAddForm && (
-            <AddUserForm
-              newUser={newUser}
-              setNewUser={setNewUser}
-              onSubmit={handleAddUser}
-              onCancel={() => setShowAddForm(false)}
-            />
-          )}
+          <AddUserModal
+            isOpen={showAddForm}
+            onClose={() => setShowAddForm(false)}
+            newUser={newUser}
+            setNewUser={setNewUser}
+            onSubmit={handleAddUser}
+          />
 
           {loading ? (
             <div className="text-center py-8">
