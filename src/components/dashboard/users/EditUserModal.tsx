@@ -110,16 +110,18 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const handleToggleAddPlanDays = (checked: boolean) => {
     setAddPlanDays(checked);
     if (checked && selectedPlanDays > 0) {
-      const today = new Date();
+      // Somar dias à data de término atual (ou original), sem alterar data de início
+      const currentEndDate = originalPlanEndRef.current 
+        ? new Date(originalPlanEndRef.current) 
+        : new Date();
+      const newEndDate = new Date(currentEndDate.getTime() + selectedPlanDays * 86400000);
       onUserChange({
         ...user,
-        planStartDate: format(today, 'yyyy-MM-dd'),
-        planEndDate: format(new Date(today.getTime() + selectedPlanDays * 86400000), 'yyyy-MM-dd'),
+        planEndDate: format(newEndDate, 'yyyy-MM-dd'),
       });
     } else {
       onUserChange({
         ...user,
-        planStartDate: originalPlanStartRef.current,
         planEndDate: originalPlanEndRef.current,
       });
     }
