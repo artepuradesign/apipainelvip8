@@ -1,64 +1,116 @@
 
+# Plano de Correção: Criação/Edição de Usuários - Dias, Desconto, CPF e Notificações
 
-## Corrigir Criacao de Usuario e Adicionar Edicao de Dias nos Dois Modais
+## Problemas Identificados
 
-### Problemas Identificados
+1. **Erro 500 na criação**: O PUT de atualização envia `plan_discount` no corpo da requisição, mas esse campo nao existe na tabela `users`. O backend tenta fazer `SET plan_discount = ?` e gera erro SQL `Column not found: 1054`. Isso faz o passo 2 inteiro falhar, perdendo saldo, dias e desconto.
 
-1. **Novo Usuario nao salva dados corretamente**: O `handleAddUser` em `GestaoUsuarios.tsx` usa `referralRegistrationService.registerWithReferral` que envia apenas dados basicos (email, password, full_name, user_role, aceite_termos) para `/auth/register`. Campos como CPF, telefone, plano, saldo, datas nao sao enviados. Alem disso, o `AddUserModal` nao repassa os dados de plano/saldo/datas para o componente pai.
+2. **CPF sem validação**: Aceita qualquer caractere. Deve aceitar apenas numeros, maximo 11 digitos.
 
-2. **Falta opcao de alterar dias manualmente**: Ambos os modais permitem apenas adicionar os dias fixos do plano. O administrador deveria poder digitar quantos dias deseja adicionar.
+3. **Notas/Observações**: O campo `notes` nao e enviado no payload de criação (passo 2), então a notificação nunca e gerada para o usuario.
 
-### Solucao
+4. **Mensagem de erro generica**: Quando falha, mostra "alguns dados não foram salvos" sem dizer quais campos falharam.
 
-**Estrategia em 2 etapas para criacao de usuario** (como sugerido pelo usuario):
-1. Primeiro: Registrar o usuario via `/auth/register` (cria usuario basico)
-2. Segundo: Atualizar os dados complementares via `adminUserApiService.updateUser` (plano, saldo, datas, CPF, etc.)
+---
 
-### Alteracoes por Arquivo
+## Solução
 
-**1. `src/components/dashboard/users/AddUserModal.tsx`**
-- Alterar `onSubmit` para receber dados extras (planBalance, planStartDate, planEndDate, planDiscount)
-- No `handleSubmit`, chamar `onSubmit` passando os dados completos do plano
-- Adicionar campo de input editavel para quantidade de dias (ao lado do switch "Adicionar dias")
-- O administrador pode digitar manualmente quantos dias quer adicionar
+### 1. Frontend - GestaoUsuarios.tsx (handleAddUser)
 
-**2. `src/components/dashboard/users/EditUserModal.tsx`**
-- Adicionar campo de input editavel para quantidade de dias (ao lado do switch "Adicionar dias")
-- Quando o switch estiver ativo, o admin pode alterar o numero de dias manualmente
-- A data de termino recalcula automaticamente ao alterar o valor
+- Remover `plan_discount` do payload do PUT (passo 2). Enviar apenas campos que existem na tabela `users`.
+- Adicionar `notes` ao payload para que o backend gere a notificação.
+- Após o PUT, fazer uma chamada separada para atualizar o desconto via `updatePlanDiscount` se necessario (ou incluir no payload como campo que o backend trata separadamente - ja funciona assim no `updateUser`).
+- Melhorar a mensagem de erro para incluir o detalhe retornado pela API.
 
-**3. `src/pages/dashboard/GestaoUsuarios.tsx`**
-- Alterar `handleAddUser` para:
-  - Passo 1: Registrar usuario via `referralRegistrationService.registerWithReferral`
-  - Passo 2: Obter o ID do usuario criado da resposta
-  - Passo 3: Chamar `adminUserApiService.updateUser` com os dados complementares (tipoplano, saldo, saldo_plano, cpf, telefone, endereco, data_inicio, data_fim)
-- Atualizar a interface do `AddUserModal` para receber callback com dados extras
-- Alterar o `onSubmit` do `AddUserModal` para aceitar parametros de plano
+Mudancas especificas:
+```typescript
+// Antes (linha 149-164):
+const updatePayload: any = {
+  tipoplano: newUser.plan,
+  saldo: newUser.balance,
+  saldo_plano: extraData.planBalance,
+  cpf: newUser.cpf,
+  telefone: newUser.phone,
+  endereco: newUser.address,
+  plan_discount: extraData.planDiscount, // CAUSA O ERRO 500
+};
 
-### Detalhes Tecnicos
-
-```text
-FLUXO DE CRIACAO (CORRIGIDO):
-
-AddUserModal (handleSubmit)
-    |
-    v
-GestaoUsuarios (handleAddUser) recebe dados extras
-    |
-    v
-[PASSO 1] POST /auth/register  -->  { email, password, full_name, user_role, aceite_termos, cpf, telefone }
-    |
-    v  (resposta com user.id)
-    |
-[PASSO 2] PUT /dashboard-admin/users/{id}  -->  { tipoplano, saldo, saldo_plano, data_inicio, data_fim, cpf, telefone, endereco }
-    |
-    v
-Recarrega lista de usuarios
+// Depois:
+const updatePayload: any = {
+  tipoplano: newUser.plan,
+  saldo: newUser.balance,
+  saldo_plano: extraData.planBalance,
+  cpf: newUser.cpf,
+  telefone: newUser.phone,
+  endereco: newUser.address,
+  plan_discount: extraData.planDiscount, // mantido - backend trata separadamente via updatePlanDiscount()
+  notes: newUser.notes, // ADICIONADO para gerar notificação
+};
 ```
 
-Campo de dias editavel nos dois modais:
-- Input numerico ao lado do switch "Adicionar dias"
-- Valor padrao: `duration_days` do plano selecionado
-- Ao alterar o valor, recalcula a data de termino automaticamente
-- Desabilitado quando o switch esta desligado
+A causa raiz e que o backend precisa NÃO incluir `plan_discount` no `$allowedFields` do SQL UPDATE (ja corrigido no diff anterior), mas ainda precisa aceita-lo para processar via `updatePlanDiscount()`.
 
+- Melhorar a mensagem de warning (linha 171):
+```typescript
+toast.warning(`Usuário criado, mas houve erro ao salvar dados complementares: ${updateResult.error}`);
+```
+
+### 2. Frontend - AddUserModal.tsx (campo CPF)
+
+- Adicionar validação para aceitar apenas numeros, maximo 11 digitos.
+
+```tsx
+// CPF - apenas numeros, max 11
+<Input
+  id="add-cpf"
+  className="h-9 text-sm"
+  value={newUser.cpf}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+    setNewUser({ ...newUser, cpf: value });
+  }}
+  placeholder="Ex: 12345678900"
+  maxLength={11}
+/>
+```
+
+### 3. Frontend - EditUserModal.tsx (campo CPF)
+
+- Mesma validação de CPF numerico, max 11 digitos.
+
+### 4. Backend - DashboardAdminController.php (createUser)
+
+Adicionar `data_inicio` e `data_fim` ao array `$optionalFields` do metodo `createUser` (linha 569):
+
+```php
+$optionalFields = ['cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado', 'data_inicio', 'data_fim'];
+```
+
+Apos a criação do usuario, chamar `updatePlanDiscount()` e `sendUpdateNotifications()` para tratar desconto e notas:
+
+```php
+// Após commit, tratar plan_discount separadamente
+if (isset($data['plan_discount']) && $data['plan_discount'] > 0) {
+    $this->updatePlanDiscount($userId, $data);
+}
+
+// Enviar notificação de notas se houver
+if (isset($data['notes']) && !empty(trim($data['notes']))) {
+    $this->sendCreateNotifications($userId, $data);
+}
+```
+
+### 5. Backend - DashboardAdminController.php (updateUser)
+
+Garantir que `plan_discount` NÃO esta no `$allowedFields` (ja corrigido), mas que `updatePlanDiscount()` continua sendo chamado (ja funciona, linha 649).
+
+---
+
+## Resumo das Alterações
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/dashboard/GestaoUsuarios.tsx` | Adicionar `notes` ao payload de criação; melhorar mensagem de erro |
+| `src/components/dashboard/users/AddUserModal.tsx` | CPF numerico, max 11 digitos |
+| `src/components/dashboard/users/EditUserModal.tsx` | CPF numerico, max 11 digitos |
+| `api/src/controllers/DashboardAdminController.php` | Adicionar `data_inicio`/`data_fim` em `$optionalFields` do `createUser`; chamar `updatePlanDiscount` e notificação de notas apos criação; garantir `plan_discount` fora do `$allowedFields` |
