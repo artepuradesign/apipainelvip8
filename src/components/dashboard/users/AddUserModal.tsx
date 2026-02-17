@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X, UserPlus } from 'lucide-react';
+import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X, UserPlus, ShieldCheck } from 'lucide-react';
 import { getFullApiUrl } from '@/utils/apiHelper';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,6 +43,7 @@ interface AddUserModalProps {
     phone: string;
     address: string;
     notes: string;
+    status: 'ativo' | 'inativo' | 'suspenso' | 'pendente';
   };
   setNewUser: (user: any) => void;
   onSubmit: (extraData: AddUserExtraData) => void;
@@ -411,6 +412,30 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
                 onChange={(e) => setNewUser({ ...newUser, notes: e.target.value })}
                 placeholder="Observações sobre o usuário..."
               />
+            </div>
+          </div>
+
+          {/* Seção: Status */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Status do Usuário</h3>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-status" className="text-xs flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3" /> Status
+              </Label>
+              <Select
+                value={newUser.status}
+                onValueChange={(value) => setNewUser({ ...newUser, status: value as any })}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">✅ Ativo</SelectItem>
+                  <SelectItem value="inativo">⛔ Inativo</SelectItem>
+                  <SelectItem value="suspenso">⚠️ Suspenso</SelectItem>
+                  <SelectItem value="pendente">⏳ Pendente</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

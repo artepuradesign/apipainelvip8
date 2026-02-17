@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X } from "lucide-react";
+import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X, ShieldCheck } from "lucide-react";
 import { getFullApiUrl } from '@/utils/apiHelper';
 import type { User } from "@/types/user";
 import { nowBrasilia, todayBrasilia, remainingDaysBR, formatDateBR } from '@/utils/timezone';
@@ -375,6 +375,30 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                 onChange={(e) => onUserChange({ ...user, notes: e.target.value })}
                 placeholder="Observação para o usuário..."
               />
+            </div>
+          </div>
+
+          {/* Seção: Status */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Status do Usuário</h3>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-status" className="text-xs flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3" /> Status
+              </Label>
+              <Select
+                value={user.status || (user.isActive ? 'ativo' : 'inativo')}
+                onValueChange={(value) => onUserChange({ ...user, status: value as any })}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">✅ Ativo</SelectItem>
+                  <SelectItem value="inativo">⛔ Inativo</SelectItem>
+                  <SelectItem value="suspenso">⚠️ Suspenso</SelectItem>
+                  <SelectItem value="pendente">⏳ Pendente</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
