@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, FileText, Save, X } from "lucide-react";
+import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X } from "lucide-react";
 import { getFullApiUrl } from '@/utils/apiHelper';
 import type { User } from "@/types/user";
 import { format, parseISO } from "date-fns";
@@ -255,7 +255,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
           {/* Seção: Plano */}
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plano</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="edit-plan" className="text-xs">Plano Atual</Label>
                 {loadingPlans ? (
@@ -282,6 +282,18 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                     </SelectContent>
                   </Select>
                 )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Percent className="h-3 w-3" /> Desconto (%)
+                </Label>
+                <Input
+                  type="number"
+                  className="h-9 text-sm bg-muted cursor-not-allowed"
+                  value={user.planDiscount || 0}
+                  readOnly
+                  disabled
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
