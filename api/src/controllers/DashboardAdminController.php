@@ -713,6 +713,9 @@ class DashboardAdminController {
                 // Se houve mudança de plano, atualizar subscription
                 if (isset($data['tipoplano']) && $data['tipoplano'] !== $currentUser['tipoplano']) {
                     $this->handlePlanChangeSubscription($userId, $data);
+                } else {
+                    // Mesmo sem trocar plano, sincronizar datas na subscription ativa
+                    $this->syncSubscriptionDates($userId, $data);
                 }
                 
                 // Atualizar desconto do plano na subscription ativa (se enviado)
@@ -780,6 +783,47 @@ class DashboardAdminController {
         }
     }
     
+    /**
+     * Sincroniza datas da tabela users na subscription ativa (quando o plano NÃO muda)
+     */
+    private function syncSubscriptionDates($userId, $newData) {
+        try {
+            $hasDateChange = isset($newData['data_inicio']) || isset($newData['data_fim']);
+            if (!$hasDateChange) return;
+
+            $subQuery = "SELECT id FROM user_subscriptions WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1";
+            $subStmt = $this->db->prepare($subQuery);
+            $subStmt->execute([$userId]);
+            $subscription = $subStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$subscription) return;
+
+            $fields = [];
+            $params = [];
+
+            if (isset($newData['data_inicio'])) {
+                $fields[] = "start_date = ?";
+                $params[] = $newData['data_inicio'];
+            }
+            if (isset($newData['data_fim'])) {
+                $fields[] = "end_date = ?";
+                $params[] = $newData['data_fim'];
+            }
+
+            $fields[] = "updated_at = NOW()";
+            $params[] = $subscription['id'];
+
+            $updateQuery = "UPDATE user_subscriptions SET " . implode(', ', $fields) . " WHERE id = ?";
+            $updateStmt = $this->db->prepare($updateQuery);
+            $updateStmt->execute($params);
+
+            error_log("SYNC_SUB_DATES: User {$userId} - Subscription {$subscription['id']} datas sincronizadas");
+        } catch (Exception $e) {
+            error_log("SYNC_SUB_DATES ERROR: " . $e->getMessage());
+        }
+    }
+
+
     /**
      * Extrai o desconto do campo metadata JSON da subscription
      */
