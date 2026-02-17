@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateBR } from '@/utils/timezone';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,13 +40,7 @@ const UserDetailsModal = ({ user, isOpen, onClose }: UserDetailsModalProps) => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDateBR(dateString, { showTime: true });
   };
 
   return (
