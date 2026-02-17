@@ -710,8 +710,10 @@ class DashboardAdminController {
             $result = $stmt->execute($updateParams);
             
             if ($result) {
-                // Se houve mudança de plano, acumular dias restantes + dias do novo plano
-                $this->handlePlanChangeWithDays($userId, $currentUser, $data);
+                // Se houve mudança de plano, atualizar subscription
+                if (isset($data['tipoplano']) && $data['tipoplano'] !== $currentUser['tipoplano']) {
+                    $this->handlePlanChangeSubscription($userId, $data);
+                }
                 
                 // Atualizar desconto do plano na subscription ativa (se enviado)
                 $this->updatePlanDiscount($userId, $data);
@@ -733,68 +735,45 @@ class DashboardAdminController {
         }
     }
     
-    private function handlePlanChangeWithDays($userId, $currentUser, $newData) {
+    /**
+     * Quando o plano muda, atualiza apenas a subscription (NÃO sobrescreve datas na tabela users)
+     * As datas na tabela users já foram salvas pelo UPDATE principal via $allowedFields
+     */
+    private function handlePlanChangeSubscription($userId, $newData) {
         try {
-            if (!isset($newData['tipoplano']) || $newData['tipoplano'] === $currentUser['tipoplano']) {
-                return; // Sem mudança de plano
-            }
-            
-            // Buscar duration_days e discount_percentage do novo plano
-            $planQuery = "SELECT id, duration_days, discount_percentage FROM plans WHERE name = ? AND is_active = 1 LIMIT 1";
+            // Buscar o novo plano
+            $planQuery = "SELECT id, discount_percentage FROM plans WHERE name = ? AND is_active = 1 LIMIT 1";
             $planStmt = $this->db->prepare($planQuery);
             $planStmt->execute([$newData['tipoplano']]);
             $newPlan = $planStmt->fetch(PDO::FETCH_ASSOC);
             
-            $newPlanId = $newPlan ? (int)$newPlan['id'] : null;
-            $newPlanDays = $newPlan ? (int)$newPlan['duration_days'] : 30;
-            $newDiscountPercentage = $newPlan ? (int)$newPlan['discount_percentage'] : 0;
-            
-            // Se datas foram enviadas manualmente, usá-las em vez de recalcular
-            if (!empty($newData['data_inicio']) && !empty($newData['data_fim'])) {
-                $newStartDate = $newData['data_inicio'];
-                $newEndDate = $newData['data_fim'];
-                error_log("ADMIN_PLAN_CHANGE: User {$userId} - Usando datas manuais: {$newStartDate} a {$newEndDate}");
-            } else {
-                // Calcular dias restantes do plano atual
-                $daysRemaining = 0;
-                if (!empty($currentUser['data_fim'])) {
-                    $endDate = new DateTime($currentUser['data_fim']);
-                    $today = new DateTime();
-                    if ($endDate > $today) {
-                        $daysRemaining = $today->diff($endDate)->days;
-                    }
-                }
-                
-                // Somar dias restantes + dias do novo plano
-                $totalDays = $daysRemaining + $newPlanDays;
-                $newStartDate = date('Y-m-d');
-                $newEndDate = date('Y-m-d', strtotime("+{$totalDays} days"));
+            if (!$newPlan) {
+                error_log("ADMIN_PLAN_CHANGE: Plano '{$newData['tipoplano']}' não encontrado");
+                return;
             }
             
-            // Atualizar datas do plano no users (sobrescreve o que foi salvo pelo allowedFields)
-            $updateQuery = "UPDATE users SET data_inicio = ?, data_fim = ?, updated_at = NOW() WHERE id = ?";
-            $updateStmt = $this->db->prepare($updateQuery);
-            $updateStmt->execute([$newStartDate, $newEndDate, $userId]);
+            $newPlanId = (int)$newPlan['id'];
+            $newDiscountPercentage = (int)$newPlan['discount_percentage'];
             
-            // Atualizar user_subscriptions com o novo plano e desconto
-            if ($newPlanId) {
-                // Desativar assinaturas anteriores
-                $deactivateQuery = "UPDATE user_subscriptions SET status = 'cancelled', updated_at = NOW() WHERE user_id = ? AND status = 'active'";
-                $deactivateStmt = $this->db->prepare($deactivateQuery);
-                $deactivateStmt->execute([$userId]);
-                
-                // Criar nova assinatura ativa com o novo plano (incluir desconto no metadata se enviado)
-                $discount = isset($newData['plan_discount']) ? (int)$newData['plan_discount'] : $newDiscountPercentage;
-                $metadata = json_encode(['discount_percentage' => $discount]);
-                $subscriptionQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, metadata, created_at) 
-                                     VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
-                $subscriptionStmt = $this->db->prepare($subscriptionQuery);
-                $subscriptionStmt->execute([$userId, $newPlanId, $newStartDate, $newEndDate, $metadata]);
-                
-                error_log("ADMIN_PLAN_CHANGE: User {$userId} - Subscription atualizada - Plan ID: {$newPlanId}, Desconto: {$newDiscountPercentage}%");
-            }
+            // Usar as datas que já foram salvas na tabela users (enviadas pelo frontend)
+            $startDate = $newData['data_inicio'] ?? date('Y-m-d');
+            $endDate = $newData['data_fim'] ?? date('Y-m-d', strtotime('+30 days'));
             
-            error_log("ADMIN_PLAN_CHANGE: User {$userId} - Plano: {$currentUser['tipoplano']} → {$newData['tipoplano']}, Fim: {$newEndDate}, Desconto: {$newDiscountPercentage}%");
+            // Desativar assinaturas anteriores
+            $deactivateQuery = "UPDATE user_subscriptions SET status = 'cancelled', updated_at = NOW() WHERE user_id = ? AND status = 'active'";
+            $deactivateStmt = $this->db->prepare($deactivateQuery);
+            $deactivateStmt->execute([$userId]);
+            
+            // Criar nova assinatura com desconto do plano (ou o enviado pelo frontend)
+            $discount = isset($newData['plan_discount']) ? (int)$newData['plan_discount'] : $newDiscountPercentage;
+            $metadata = json_encode(['discount_percentage' => $discount]);
+            
+            $subscriptionQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, metadata, created_at) 
+                                 VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
+            $subscriptionStmt = $this->db->prepare($subscriptionQuery);
+            $subscriptionStmt->execute([$userId, $newPlanId, $startDate, $endDate, $metadata]);
+            
+            error_log("ADMIN_PLAN_CHANGE: User {$userId} - Plano atualizado para {$newData['tipoplano']}, Datas: {$startDate} a {$endDate}, Desconto: {$discount}%");
             
         } catch (Exception $e) {
             error_log("HANDLE_PLAN_CHANGE ERROR: " . $e->getMessage());
@@ -819,6 +798,26 @@ class DashboardAdminController {
     private function updatePlanDiscount($userId, $newData) {
         try {
             if (!isset($newData['plan_discount'])) {
+                return;
+            }
+            
+            // Se o plano já mudou, a subscription já foi criada com o desconto em handlePlanChangeSubscription
+            if (isset($newData['tipoplano'])) {
+                // Verificar se já existe subscription ativa e atualizar metadata
+                $subQuery = "SELECT id, metadata FROM user_subscriptions WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1";
+                $subStmt = $this->db->prepare($subQuery);
+                $subStmt->execute([$userId]);
+                $subscription = $subStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($subscription) {
+                    $metadata = !empty($subscription['metadata']) ? json_decode($subscription['metadata'], true) : [];
+                    if (!is_array($metadata)) $metadata = [];
+                    $metadata['discount_percentage'] = (int)$newData['plan_discount'];
+                    
+                    $updateQuery = "UPDATE user_subscriptions SET metadata = ? WHERE id = ?";
+                    $updateStmt = $this->db->prepare($updateQuery);
+                    $updateStmt->execute([json_encode($metadata), $subscription['id']]);
+                }
                 return;
             }
             
