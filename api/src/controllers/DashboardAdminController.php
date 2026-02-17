@@ -773,7 +773,44 @@ class DashboardAdminController {
                 
                 error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Plan ID: {$subscription['plan_id']}, Desconto atualizado para: {$discount}%");
             } else {
-                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Nenhuma subscription ativa encontrada");
+                // Sem subscription ativa - buscar o tipoplano do usuário e criar subscription
+                $userQuery = "SELECT tipoplano, data_inicio, data_fim FROM users WHERE id = ?";
+                $userStmt = $this->db->prepare($userQuery);
+                $userStmt->execute([$userId]);
+                $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
+                
+                $planName = $userData['tipoplano'] ?? 'Pré-Pago';
+                
+                // Buscar ou criar o plano na tabela plans
+                $planQuery = "SELECT id FROM plans WHERE name = ? LIMIT 1";
+                $planStmt = $this->db->prepare($planQuery);
+                $planStmt->execute([$planName]);
+                $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$plan) {
+                    // Criar o plano se não existir (ex: Pré-Pago)
+                    $createPlanQuery = "INSERT INTO plans (name, price, discount_percentage, is_active, created_at, updated_at) VALUES (?, 0, ?, 1, NOW(), NOW())";
+                    $createPlanStmt = $this->db->prepare($createPlanQuery);
+                    $createPlanStmt->execute([$planName, $discount]);
+                    $planId = $this->db->lastInsertId();
+                    error_log("ADMIN_DISCOUNT_UPDATE: Plano '{$planName}' criado com ID {$planId}");
+                } else {
+                    $planId = $plan['id'];
+                    // Atualizar desconto no plano existente
+                    $updatePlanQuery = "UPDATE plans SET discount_percentage = ?, updated_at = NOW() WHERE id = ?";
+                    $updatePlanStmt = $this->db->prepare($updatePlanQuery);
+                    $updatePlanStmt->execute([$discount, $planId]);
+                }
+                
+                // Criar subscription ativa para o usuário
+                $startDate = $userData['data_inicio'] ?? date('Y-m-d');
+                $endDate = $userData['data_fim'] ?? date('Y-m-d', strtotime('+30 days'));
+                
+                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, starts_at, ends_at, auto_renew, created_at, updated_at) VALUES (?, ?, 'active', ?, ?, 0, NOW(), NOW())";
+                $createSubStmt = $this->db->prepare($createSubQuery);
+                $createSubStmt->execute([$userId, $planId, $startDate, $endDate]);
+                
+                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription criada para plano '{$planName}' (ID: {$planId}), Desconto: {$discount}%");
             }
             
         } catch (Exception $e) {
