@@ -154,6 +154,7 @@ const GestaoUsuarios = () => {
           telefone: newUser.phone,
           endereco: newUser.address,
           plan_discount: extraData.planDiscount,
+          notes: newUser.notes,
         };
 
         if (extraData.planStartDate) {
@@ -168,7 +169,7 @@ const GestaoUsuarios = () => {
         
         if (!updateResult.success) {
           console.warn('⚠️ [ADD_USER] Usuário criado mas erro ao atualizar dados:', updateResult.error);
-          toast.warning('Usuário criado, mas alguns dados não foram salvos. Edite o usuário para completar.');
+          toast.warning(`Usuário criado, mas houve erro ao salvar dados complementares: ${updateResult.error || 'erro desconhecido'}`);
         }
       } else {
         console.warn('⚠️ [ADD_USER] Não foi possível obter o ID do usuário criado para atualizar dados extras');
