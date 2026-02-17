@@ -11,8 +11,7 @@ import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { SimpleCounter } from '@/components/ui/simple-counter';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateBR, remainingDaysBR } from '@/utils/timezone';
 
 interface UserWalletDropdownProps {
   onLogout?: () => void;
@@ -248,7 +247,7 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Plano</span>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {subscription?.plan_name || user.tipoplano || 'Pré-Pago'}
+                        {subscription?.plan_name || 'Pré-Pago'}
                       </div>
                     </div>
                     
@@ -262,37 +261,25 @@ const UserWalletDropdown = ({ onLogout }: UserWalletDropdownProps) => {
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Inicio do Plano</span>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {(() => {
-                          const startDate = subscription?.start_date || subscription?.starts_at || user.data_inicio;
-                          return startDate
-                            ? format(new Date(startDate), 'dd/MM/yyyy', { locale: ptBR })
-                            : '-';
-                        })()}
+                        {formatDateBR(subscription?.start_date || subscription?.starts_at)}
                       </div>
                     </div>
                     
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Termino do Plano</span>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {(() => {
-                          const endDate = subscription?.end_date || subscription?.ends_at || user.data_fim;
-                          return endDate
-                            ? format(new Date(endDate), 'dd/MM/yyyy', { locale: ptBR })
-                            : '-';
-                        })()}
+                        {formatDateBR(subscription?.end_date || subscription?.ends_at)}
                       </div>
                     </div>
                     
                     {/* Dias Restantes */}
-                    {(subscription?.end_date || subscription?.ends_at || user.data_fim) && (
+                    {(subscription?.end_date || subscription?.ends_at) && (
                       <div className="flex justify-between items-center pt-1">
                         <span className="text-muted-foreground font-semibold">Dias Restantes</span>
                         <div className="font-bold text-blue-600 dark:text-blue-400">
                           {(() => {
-                            const endDate = new Date(subscription?.end_date || subscription?.ends_at || (user as any).data_fim);
-                            const now = new Date();
-                            const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                            return daysRemaining > 0 ? `${daysRemaining} dias` : 'Expirado';
+                            const days = remainingDaysBR(subscription?.end_date || subscription?.ends_at);
+                            return days > 0 ? `${days} dias` : 'Expirado';
                           })()}
                         </div>
                       </div>
