@@ -587,7 +587,7 @@ class DashboardAdminController {
             $this->db->commit();
             
             // Após commit, tratar plan_discount separadamente (não é coluna da tabela users)
-            if (isset($data['plan_discount']) && (int)$data['plan_discount'] > 0) {
+            if (isset($data['plan_discount'])) {
                 $this->updatePlanDiscount($userId, $data);
             }
             
@@ -806,7 +806,7 @@ class DashboardAdminController {
                 $startDate = $userData['data_inicio'] ?? date('Y-m-d');
                 $endDate = $userData['data_fim'] ?? date('Y-m-d', strtotime('+30 days'));
                 
-                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, starts_at, ends_at, auto_renew, created_at, updated_at) VALUES (?, ?, 'active', ?, ?, 0, NOW(), NOW())";
+                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, created_at) VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, NOW())";
                 $createSubStmt = $this->db->prepare($createSubQuery);
                 $createSubStmt->execute([$userId, $planId, $startDate, $endDate]);
                 

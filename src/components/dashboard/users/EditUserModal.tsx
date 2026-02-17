@@ -50,7 +50,19 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       setAddPlanDays(false);
       setSelectedPlanPrice(0);
       setSelectedPlanDays(0);
-      setCustomDays(0);
+      
+      // Calcular dias restantes a partir de data_fim
+      let remainingDays = 0;
+      if (user.planEndDate) {
+        const endDate = new Date(user.planEndDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+        const diffTime = endDate.getTime() - today.getTime();
+        remainingDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      }
+      setCustomDays(remainingDays);
+      
       originalPlanBalanceRef.current = user.planBalance || 0;
       originalPlanStartRef.current = user.planStartDate;
       originalPlanEndRef.current = user.planEndDate;
