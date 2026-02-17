@@ -566,7 +566,7 @@ class DashboardAdminController {
             $userId = $this->db->lastInsertId();
             
             // Atualizar campos opcionais se fornecidos
-            $optionalFields = ['cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado'];
+            $optionalFields = ['cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado', 'data_inicio', 'data_fim'];
             $updateFields = [];
             $updateParams = [];
             
@@ -585,6 +585,26 @@ class DashboardAdminController {
             }
             
             $this->db->commit();
+            
+            // Após commit, tratar plan_discount separadamente (não é coluna da tabela users)
+            if (isset($data['plan_discount']) && (int)$data['plan_discount'] > 0) {
+                $this->updatePlanDiscount($userId, $data);
+            }
+            
+            // Enviar notificação de notas se houver
+            if (isset($data['notes']) && !empty(trim($data['notes']))) {
+                require_once __DIR__ . '/../services/NotificationService.php';
+                $notificationService = new NotificationService($this->db);
+                $notificationService->createNotification(
+                    $userId,
+                    'info',
+                    'Mensagem do Administrador',
+                    $data['notes'],
+                    null,
+                    null,
+                    'medium'
+                );
+            }
             
             Response::success([
                 'id' => $userId,

@@ -69,8 +69,12 @@ const AddUserForm = ({ newUser, setNewUser, onSubmit, onCancel }: AddUserFormPro
             <Input
               id="cpf"
               value={newUser.cpf}
-              onChange={(e) => setNewUser({ ...newUser, cpf: e.target.value })}
-              placeholder="Ex: 123.456.789-00"
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                setNewUser({ ...newUser, cpf: value });
+              }}
+              placeholder="Ex: 12345678900"
+              maxLength={11}
             />
           </div>
         </div>
