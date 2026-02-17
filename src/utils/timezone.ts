@@ -2,11 +2,27 @@
 export const APP_TIMEZONE = 'America/Sao_Paulo';
 
 /**
+ * Parseia uma string "YYYY-MM-DD" como data LOCAL (sem interpretação UTC)
+ * Evita o problema de new Date("2026-04-08") ser interpretado como UTC meia-noite
+ */
+function parseDateLocal(dateStr: string): Date {
+  // Se contém "T" ou "Z", é um datetime completo — usar construtor padrão
+  if (dateStr.includes('T') || dateStr.includes('Z')) {
+    return new Date(dateStr);
+  }
+  // Para "YYYY-MM-DD", parsear como local para evitar shift de timezone
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length === 3) {
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  return new Date(dateStr);
+}
+
+/**
  * Retorna a data/hora atual no fuso de Brasília
  */
 export function nowBrasilia(): Date {
   const now = new Date();
-  // Converter para string no fuso de Brasília e parsear de volta
   const brasiliaString = now.toLocaleString('en-US', { timeZone: APP_TIMEZONE });
   return new Date(brasiliaString);
 }
@@ -24,7 +40,7 @@ export function formatDateBR(
   if (!dateInput) return '—';
 
   try {
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    const date = typeof dateInput === 'string' ? parseDateLocal(dateInput) : dateInput;
     if (isNaN(date.getTime())) return '—';
 
     const formatOptions: Intl.DateTimeFormatOptions = {
@@ -61,18 +77,20 @@ export function todayBrasilia(): string {
 
 /**
  * Calcula dias restantes a partir de uma data final, usando o fuso de Brasília
+ * Ambas as datas são normalizadas para meia-noite LOCAL para evitar problemas de timezone
  */
 export function remainingDaysBR(endDate: string | Date | undefined | null): number {
   if (!endDate) return 0;
-  const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+  
+  // Parsear a data final como LOCAL (não UTC)
+  const end = typeof endDate === 'string' ? parseDateLocal(endDate) : new Date(endDate);
   if (isNaN(end.getTime())) return 0;
+  end.setHours(0, 0, 0, 0);
 
+  // Hoje em Brasília, também normalizado para meia-noite
   const today = nowBrasilia();
   today.setHours(0, 0, 0, 0);
-  
-  const endNormalized = new Date(end);
-  endNormalized.setHours(0, 0, 0, 0);
 
-  const diffMs = endNormalized.getTime() - today.getTime();
-  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  const diffMs = end.getTime() - today.getTime();
+  return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
 }
