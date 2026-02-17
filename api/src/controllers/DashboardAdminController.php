@@ -617,7 +617,7 @@ class DashboardAdminController {
             $allowedFields = [
                 'full_name', 'email', 'user_role', 'status', 'saldo', 'saldo_plano', 
                 'tipoplano', 'cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado',
-                'data_inicio', 'data_fim', 'plan_discount'
+                'data_inicio', 'data_fim'
             ];
             
             $updateFields = [];
@@ -681,22 +681,29 @@ class DashboardAdminController {
             $newPlanDays = $newPlan ? (int)$newPlan['duration_days'] : 30;
             $newDiscountPercentage = $newPlan ? (int)$newPlan['discount_percentage'] : 0;
             
-            // Calcular dias restantes do plano atual
-            $daysRemaining = 0;
-            if (!empty($currentUser['data_fim'])) {
-                $endDate = new DateTime($currentUser['data_fim']);
-                $today = new DateTime();
-                if ($endDate > $today) {
-                    $daysRemaining = $today->diff($endDate)->days;
+            // Se datas foram enviadas manualmente, usá-las em vez de recalcular
+            if (!empty($newData['data_inicio']) && !empty($newData['data_fim'])) {
+                $newStartDate = $newData['data_inicio'];
+                $newEndDate = $newData['data_fim'];
+                error_log("ADMIN_PLAN_CHANGE: User {$userId} - Usando datas manuais: {$newStartDate} a {$newEndDate}");
+            } else {
+                // Calcular dias restantes do plano atual
+                $daysRemaining = 0;
+                if (!empty($currentUser['data_fim'])) {
+                    $endDate = new DateTime($currentUser['data_fim']);
+                    $today = new DateTime();
+                    if ($endDate > $today) {
+                        $daysRemaining = $today->diff($endDate)->days;
+                    }
                 }
+                
+                // Somar dias restantes + dias do novo plano
+                $totalDays = $daysRemaining + $newPlanDays;
+                $newStartDate = date('Y-m-d');
+                $newEndDate = date('Y-m-d', strtotime("+{$totalDays} days"));
             }
             
-            // Somar dias restantes + dias do novo plano
-            $totalDays = $daysRemaining + $newPlanDays;
-            $newStartDate = date('Y-m-d');
-            $newEndDate = date('Y-m-d', strtotime("+{$totalDays} days"));
-            
-            // Atualizar datas do plano no users
+            // Atualizar datas do plano no users (sobrescreve o que foi salvo pelo allowedFields)
             $updateQuery = "UPDATE users SET data_inicio = ?, data_fim = ?, updated_at = NOW() WHERE id = ?";
             $updateStmt = $this->db->prepare($updateQuery);
             $updateStmt->execute([$newStartDate, $newEndDate, $userId]);
@@ -717,7 +724,7 @@ class DashboardAdminController {
                 error_log("ADMIN_PLAN_CHANGE: User {$userId} - Subscription atualizada - Plan ID: {$newPlanId}, Desconto: {$newDiscountPercentage}%");
             }
             
-            error_log("ADMIN_PLAN_CHANGE: User {$userId} - Plano: {$currentUser['tipoplano']} → {$newData['tipoplano']}, Dias restantes: {$daysRemaining}, Novo plano: {$newPlanDays} dias, Total: {$totalDays} dias, Fim: {$newEndDate}, Desconto: {$newDiscountPercentage}%");
+            error_log("ADMIN_PLAN_CHANGE: User {$userId} - Plano: {$currentUser['tipoplano']} → {$newData['tipoplano']}, Fim: {$newEndDate}, Desconto: {$newDiscountPercentage}%");
             
         } catch (Exception $e) {
             error_log("HANDLE_PLAN_CHANGE ERROR: " . $e->getMessage());
