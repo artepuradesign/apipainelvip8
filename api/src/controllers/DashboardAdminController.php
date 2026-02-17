@@ -220,7 +220,8 @@ class DashboardAdminController {
                              COALESCE(SUM(wt.amount), 0) as total_spent,
                              MAX(uss.last_activity) as last_login,
                              usub.plan_id as subscription_plan_id,
-                             COALESCE(usub.discount_percentage, p.discount_percentage, 0) as plan_discount_percentage
+                             usub.metadata as subscription_metadata,
+                             COALESCE(p.discount_percentage, 0) as plan_discount_percentage
                       FROM users u
                       LEFT JOIN consultations c ON u.id = c.user_id
                       LEFT JOIN wallet_transactions wt ON u.id = wt.user_id AND wt.type = 'saida'
@@ -249,7 +250,7 @@ class DashboardAdminController {
                     'saldo_plano' => floatval($row['saldo_plano']),
                     'data_inicio' => $row['data_inicio'],
                     'data_fim' => $row['data_fim'],
-                    'plan_discount' => (int)($row['plan_discount_percentage'] ?? 0),
+                    'plan_discount' => $this->getDiscountFromSubscription($row),
                     'status' => $row['status'],
                     'user_role' => $row['user_role'],
                     'full_name' => $row['full_name'],
@@ -751,6 +752,21 @@ class DashboardAdminController {
         }
     }
     
+    /**
+     * Extrai o desconto do campo metadata JSON da subscription
+     */
+    private function getDiscountFromSubscription($row) {
+        // Primeiro tenta ler do metadata JSON da subscription
+        if (!empty($row['subscription_metadata'])) {
+            $metadata = json_decode($row['subscription_metadata'], true);
+            if (is_array($metadata) && isset($metadata['discount_percentage'])) {
+                return (int)$metadata['discount_percentage'];
+            }
+        }
+        // Fallback: desconto do plano compartilhado
+        return (int)($row['plan_discount_percentage'] ?? 0);
+    }
+    
     private function updatePlanDiscount($userId, $newData) {
         try {
             if (!isset($newData['plan_discount'])) {
@@ -759,29 +775,25 @@ class DashboardAdminController {
             
             $discount = (int)$newData['plan_discount'];
             
-            // Garantir que a coluna discount_percentage existe em user_subscriptions
-            try {
-                $this->db->exec("ALTER TABLE user_subscriptions ADD COLUMN discount_percentage int(11) DEFAULT 0");
-                error_log("ADMIN_DISCOUNT: Coluna discount_percentage adicionada a user_subscriptions");
-            } catch (Exception $e) {
-                // Coluna já existe, ignorar
-            }
-            
             // Buscar a subscription ativa do usuário
-            $subQuery = "SELECT usub.id, usub.plan_id FROM user_subscriptions usub WHERE usub.user_id = ? AND usub.status = 'active' ORDER BY usub.id DESC LIMIT 1";
+            $subQuery = "SELECT usub.id, usub.plan_id, usub.metadata FROM user_subscriptions usub WHERE usub.user_id = ? AND usub.status = 'active' ORDER BY usub.id DESC LIMIT 1";
             $subStmt = $this->db->prepare($subQuery);
             $subStmt->execute([$userId]);
             $subscription = $subStmt->fetch(PDO::FETCH_ASSOC);
             
             if ($subscription) {
-                // Atualizar discount_percentage diretamente na subscription do usuário (não no plano compartilhado)
-                $updateQuery = "UPDATE user_subscriptions SET discount_percentage = ? WHERE id = ?";
-                $updateStmt = $this->db->prepare($updateQuery);
-                $updateStmt->execute([$discount, $subscription['id']]);
+                // Atualizar desconto no campo metadata JSON (per-user, sem criar coluna nova)
+                $metadata = !empty($subscription['metadata']) ? json_decode($subscription['metadata'], true) : [];
+                if (!is_array($metadata)) $metadata = [];
+                $metadata['discount_percentage'] = $discount;
                 
-                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription ID: {$subscription['id']}, Desconto atualizado para: {$discount}%");
+                $updateQuery = "UPDATE user_subscriptions SET metadata = ? WHERE id = ?";
+                $updateStmt = $this->db->prepare($updateQuery);
+                $updateStmt->execute([json_encode($metadata), $subscription['id']]);
+                
+                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription ID: {$subscription['id']}, Desconto salvo no metadata: {$discount}%");
             } else {
-                // Sem subscription ativa - buscar o tipoplano do usuário e criar subscription
+                // Sem subscription ativa - criar uma nova
                 $userQuery = "SELECT tipoplano, data_inicio, data_fim FROM users WHERE id = ?";
                 $userStmt = $this->db->prepare($userQuery);
                 $userStmt->execute([$userId]);
@@ -805,15 +817,16 @@ class DashboardAdminController {
                     $planId = $plan['id'];
                 }
                 
-                // Criar subscription ativa com o desconto PER-USER
+                // Criar subscription com desconto no metadata JSON
                 $startDate = $userData['data_inicio'] ?? date('Y-m-d');
                 $endDate = $userData['data_fim'] ?? date('Y-m-d', strtotime('+30 days'));
+                $metadata = json_encode(['discount_percentage' => $discount]);
                 
-                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, discount_percentage, created_at) VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
+                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, metadata, created_at) VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
                 $createSubStmt = $this->db->prepare($createSubQuery);
-                $createSubStmt->execute([$userId, $planId, $startDate, $endDate, $discount]);
+                $createSubStmt->execute([$userId, $planId, $startDate, $endDate, $metadata]);
                 
-                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription criada para plano '{$planName}' (ID: {$planId}), Desconto: {$discount}%");
+                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription criada com metadata desconto: {$discount}%");
             }
             
         } catch (Exception $e) {
