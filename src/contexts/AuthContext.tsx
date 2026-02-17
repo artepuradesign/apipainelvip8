@@ -258,7 +258,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await userApiService.getUserData();
       if (response.success && response.data) {
         const apiUser = response.data as unknown as ApiUser;
-        setUserData(apiUser);
+        
+        // Mesclar com dados existentes para preservar campos que a API pode não retornar
+        // (ex: data_inicio, data_fim podem não vir no /wallet/profile)
+        if (user) {
+          const mergedUser: ApiUser = {
+            ...{ 
+              id: parseInt(user.id), 
+              login: user.login,
+              email: user.email,
+              full_name: user.full_name,
+              user_role: user.user_role,
+              saldo: user.saldo,
+              saldo_plano: user.saldo_plano,
+              status: user.status,
+              tipoplano: user.tipoplano,
+              data_inicio: user.data_inicio,
+              data_fim: user.data_fim,
+            },
+            ...apiUser,
+          };
+          // Preservar campos que existiam antes mas vieram undefined/null na resposta
+          if (!mergedUser.data_inicio && user.data_inicio) {
+            mergedUser.data_inicio = user.data_inicio;
+          }
+          if (!mergedUser.data_fim && user.data_fim) {
+            mergedUser.data_fim = user.data_fim;
+          }
+          setUserData(mergedUser);
+        } else {
+          setUserData(apiUser);
+        }
         console.log('✅ [AUTH] Dados do usuário atualizados');
       }
     } catch (error) {
