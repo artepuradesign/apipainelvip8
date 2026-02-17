@@ -22,6 +22,13 @@ interface Plan {
   duration_days?: number;
 }
 
+export interface AddUserExtraData {
+  planBalance: number;
+  planStartDate: string;
+  planEndDate: string;
+  planDiscount: number;
+}
+
 interface AddUserModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -38,7 +45,7 @@ interface AddUserModalProps {
     notes: string;
   };
   setNewUser: (user: any) => void;
-  onSubmit: () => void;
+  onSubmit: (extraData: AddUserExtraData) => void;
 }
 
 const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUserModalProps) => {
@@ -48,6 +55,7 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
   const [addPlanDays, setAddPlanDays] = useState(false);
   const [selectedPlanPrice, setSelectedPlanPrice] = useState(0);
   const [selectedPlanDays, setSelectedPlanDays] = useState(0);
+  const [customDays, setCustomDays] = useState(0);
   const [planDiscount, setPlanDiscount] = useState(0);
   const [planStartDate, setPlanStartDate] = useState('');
   const [planEndDate, setPlanEndDate] = useState('');
@@ -60,6 +68,7 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
       setAddPlanDays(false);
       setSelectedPlanPrice(0);
       setSelectedPlanDays(0);
+      setCustomDays(0);
       setPlanDiscount(0);
       setPlanStartDate('');
       setPlanEndDate('');
@@ -82,6 +91,17 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
     }
   };
 
+  const recalcEndDate = (days: number) => {
+    if (days > 0) {
+      const today = new Date();
+      setPlanStartDate(format(today, 'yyyy-MM-dd'));
+      setPlanEndDate(format(new Date(today.getTime() + days * 86400000), 'yyyy-MM-dd'));
+    } else {
+      setPlanStartDate('');
+      setPlanEndDate('');
+    }
+  };
+
   const handlePlanChange = (value: string) => {
     const selectedPlan = plans.find(p => p.name === value);
     const discount = selectedPlan?.discount_percentage ?? getDiscount(value);
@@ -89,15 +109,14 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
     const days = selectedPlan?.duration_days || 0;
     setSelectedPlanPrice(price);
     setSelectedPlanDays(days);
+    setCustomDays(days);
     setPlanDiscount(discount);
 
     const newBalance = addPlanBalance && price > 0 ? price : 0;
     setPlanBalance(newBalance);
 
     if (addPlanDays && days > 0) {
-      const today = new Date();
-      setPlanStartDate(format(today, 'yyyy-MM-dd'));
-      setPlanEndDate(format(new Date(today.getTime() + days * 86400000), 'yyyy-MM-dd'));
+      recalcEndDate(days);
     } else {
       setPlanStartDate('');
       setPlanEndDate('');
@@ -113,13 +132,18 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
 
   const handleToggleAddPlanDays = (checked: boolean) => {
     setAddPlanDays(checked);
-    if (checked && selectedPlanDays > 0) {
-      const today = new Date();
-      setPlanStartDate(format(today, 'yyyy-MM-dd'));
-      setPlanEndDate(format(new Date(today.getTime() + selectedPlanDays * 86400000), 'yyyy-MM-dd'));
+    if (checked && customDays > 0) {
+      recalcEndDate(customDays);
     } else {
       setPlanStartDate('');
       setPlanEndDate('');
+    }
+  };
+
+  const handleCustomDaysChange = (value: number) => {
+    setCustomDays(value);
+    if (addPlanDays && value > 0) {
+      recalcEndDate(value);
     }
   };
 
@@ -128,12 +152,12 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
   };
 
   const handleSubmit = () => {
-    // Inject plan-related data into newUser before submitting
-    setNewUser({
-      ...newUser,
-      balance: planBalance,
+    onSubmit({
+      planBalance,
+      planStartDate,
+      planEndDate,
+      planDiscount,
     });
-    onSubmit();
   };
 
   return (
@@ -274,17 +298,32 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="add-role" className="text-xs">Tipo de Usuário</Label>
-                <Select value={newUser.role} onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}>
-                  <SelectTrigger id="add-role" className="h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="assinante">Assinante</SelectItem>
-                    <SelectItem value="suporte">Suporte</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="add-plan-discount" className="text-xs flex items-center gap-1.5">
+                  <Percent className="h-3 w-3" /> Desconto (%)
+                </Label>
+                <Input
+                  id="add-plan-discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="h-9 text-sm"
+                  value={planDiscount}
+                  onChange={(e) => setPlanDiscount(parseInt(e.target.value) || 0)}
+                />
               </div>
+            </div>
+
+            <div className="mt-3 space-y-1.5">
+              <Label htmlFor="add-role" className="text-xs">Tipo de Usuário</Label>
+              <Select value={newUser.role} onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}>
+                <SelectTrigger id="add-role" className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="assinante">Assinante</SelectItem>
+                  <SelectItem value="suporte">Suporte</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Switches: Adicionar valor e dias */}
@@ -306,7 +345,7 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
                 <div className="min-w-0">
                   <Label className="text-xs font-medium block">Adicionar dias</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias` : 'Selecione um plano'}
+                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias do plano` : 'Selecione um plano'}
                   </p>
                 </div>
                 <Switch
@@ -338,9 +377,14 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
                 <Label className="text-xs flex items-center gap-1">
                   <Clock className="h-3 w-3" /> Dias
                 </Label>
-                <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted font-semibold text-primary">
-                  {selectedPlanDays > 0 && addPlanDays ? `${selectedPlanDays} dias` : '—'}
-                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  className="h-9 text-sm font-semibold text-primary"
+                  value={addPlanDays ? customDays : 0}
+                  onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
+                  disabled={!addPlanDays}
+                />
               </div>
             </div>
           </div>
