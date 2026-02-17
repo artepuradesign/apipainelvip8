@@ -616,7 +616,8 @@ class DashboardAdminController {
             
             $allowedFields = [
                 'full_name', 'email', 'user_role', 'status', 'saldo', 'saldo_plano', 
-                'tipoplano', 'cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado'
+                'tipoplano', 'cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado',
+                'data_inicio', 'data_fim', 'plan_discount'
             ];
             
             $updateFields = [];
