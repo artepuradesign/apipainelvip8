@@ -521,6 +521,8 @@ class DashboardAdminController {
         try {
             $data = json_decode(file_get_contents("php://input"), true);
             
+            error_log("DASHBOARD_ADMIN CREATE_USER: Dados recebidos: " . json_encode($data));
+            
             $required = ['email', 'full_name', 'user_role'];
             foreach ($required as $field) {
                 if (!isset($data[$field]) || empty($data[$field])) {
@@ -541,56 +543,98 @@ class DashboardAdminController {
             
             $this->db->beginTransaction();
             
-            // Criar usuário
-            $userQuery = "INSERT INTO users 
-                         (username, email, password_hash, full_name, user_role, status, saldo, saldo_plano, tipoplano, aceite_termos, created_at) 
-                         VALUES (?, ?, ?, ?, ?, 'ativo', ?, ?, ?, 1, NOW())";
-            
-            $username = explode('@', $data['email'])[0];
+            // Preparar dados
+            $username = $data['username'] ?? $data['email'];
             $password = $data['password'] ?? '123456';
             $saldo = $data['saldo'] ?? 0;
             $saldoPlano = $data['saldo_plano'] ?? 0;
             $tipoplano = $data['tipoplano'] ?? 'Pré-Pago';
+            $dataInicio = $data['data_inicio'] ?? date('Y-m-d');
+            $dataFim = $data['data_fim'] ?? date('Y-m-d', strtotime('+30 days'));
+            
+            // Gerar codigo_indicacao
+            $prefix = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $data['full_name']), 0, 3));
+            $suffix = rand(1000, 9999);
+            $codigoIndicacao = $prefix . $suffix;
+            
+            // Gerar senhas padrão
+            $senhaalfa = $password;
+            $senha4 = '0000';
+            $senha6 = '000000';
+            $senha8 = '00000000';
+            
+            // INSERT completo na tabela users com todos os campos
+            $userQuery = "INSERT INTO users 
+                         (username, email, password_hash, full_name, user_role, status, 
+                          saldo, saldo_plano, tipoplano, data_inicio, data_fim,
+                          senhaalfa, senha4, senha6, senha8, codigo_indicacao,
+                          cpf, cnpj, telefone, endereco, cep, cidade, estado,
+                          aceite_termos, created_at) 
+                         VALUES (?, ?, ?, ?, ?, 'ativo', 
+                                 ?, ?, ?, ?, ?,
+                                 ?, ?, ?, ?, ?,
+                                 ?, ?, ?, ?, ?, ?, ?,
+                                 1, NOW())";
             
             $userStmt = $this->db->prepare($userQuery);
             $userStmt->execute([
                 $username,
                 $data['email'],
-                password_hash($password, PASSWORD_DEFAULT),
+                md5($password),
                 $data['full_name'],
                 $data['user_role'],
                 $saldo,
                 $saldoPlano,
-                $tipoplano
+                $tipoplano,
+                $dataInicio,
+                $dataFim,
+                $senhaalfa,
+                $senha4,
+                $senha6,
+                $senha8,
+                $codigoIndicacao,
+                $data['cpf'] ?? null,
+                $data['cnpj'] ?? null,
+                $data['telefone'] ?? null,
+                $data['endereco'] ?? null,
+                $data['cep'] ?? null,
+                $data['cidade'] ?? null,
+                $data['estado'] ?? null
             ]);
             
             $userId = $this->db->lastInsertId();
+            error_log("DASHBOARD_ADMIN CREATE_USER: Usuário criado com ID {$userId}");
             
-            // Atualizar campos opcionais se fornecidos
-            $optionalFields = ['cpf', 'cnpj', 'telefone', 'endereco', 'cep', 'cidade', 'estado', 'data_inicio', 'data_fim'];
-            $updateFields = [];
-            $updateParams = [];
+            // Criar subscription com desconto no metadata
+            $discount = isset($data['plan_discount']) ? (int)$data['plan_discount'] : 0;
             
-            foreach ($optionalFields as $field) {
-                if (isset($data[$field]) && !empty($data[$field])) {
-                    $updateFields[] = "{$field} = ?";
-                    $updateParams[] = $data[$field];
-                }
+            // Buscar plan_id
+            $planQuery = "SELECT id FROM plans WHERE name = ? AND is_active = 1 LIMIT 1";
+            $planStmt = $this->db->prepare($planQuery);
+            $planStmt->execute([$tipoplano]);
+            $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$plan) {
+                // Criar plano se não existir
+                $createPlanQuery = "INSERT INTO plans (name, price, discount_percentage, duration_days, is_active, created_at, updated_at) VALUES (?, 0, 0, 30, 1, NOW(), NOW())";
+                $createPlanStmt = $this->db->prepare($createPlanQuery);
+                $createPlanStmt->execute([$tipoplano]);
+                $planId = $this->db->lastInsertId();
+                error_log("DASHBOARD_ADMIN CREATE_USER: Plano '{$tipoplano}' criado com ID {$planId}");
+            } else {
+                $planId = $plan['id'];
             }
             
-            if (!empty($updateFields)) {
-                $updateParams[] = $userId;
-                $updateQuery = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ?";
-                $updateStmt = $this->db->prepare($updateQuery);
-                $updateStmt->execute($updateParams);
-            }
+            // Criar subscription com metadata contendo o desconto
+            $metadata = json_encode(['discount_percentage' => $discount]);
+            $subQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, metadata, created_at) 
+                         VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
+            $subStmt = $this->db->prepare($subQuery);
+            $subStmt->execute([$userId, $planId, $dataInicio, $dataFim, $metadata]);
+            
+            error_log("DASHBOARD_ADMIN CREATE_USER: Subscription criada - Plan ID: {$planId}, Desconto: {$discount}%, Metadata: {$metadata}");
             
             $this->db->commit();
-            
-            // Após commit, tratar plan_discount separadamente (não é coluna da tabela users)
-            if (isset($data['plan_discount'])) {
-                $this->updatePlanDiscount($userId, $data);
-            }
             
             // Enviar notificação de notas se houver
             if (isset($data['notes']) && !empty(trim($data['notes']))) {
@@ -610,11 +654,14 @@ class DashboardAdminController {
             Response::success([
                 'id' => $userId,
                 'email' => $data['email'],
-                'full_name' => $data['full_name']
+                'full_name' => $data['full_name'],
+                'plan_discount' => $discount
             ], 'Usuário criado com sucesso', 201);
             
         } catch (Exception $e) {
-            $this->db->rollback();
+            if ($this->db->inTransaction()) {
+                $this->db->rollback();
+            }
             error_log("DASHBOARD_ADMIN CREATE_USER ERROR: " . $e->getMessage());
             Response::error('Erro ao criar usuário: ' . $e->getMessage(), 500);
         }
@@ -736,11 +783,13 @@ class DashboardAdminController {
                 $deactivateStmt = $this->db->prepare($deactivateQuery);
                 $deactivateStmt->execute([$userId]);
                 
-                // Criar nova assinatura ativa com o novo plano
-                $subscriptionQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, created_at) 
-                                     VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, NOW())";
+                // Criar nova assinatura ativa com o novo plano (incluir desconto no metadata se enviado)
+                $discount = isset($newData['plan_discount']) ? (int)$newData['plan_discount'] : $newDiscountPercentage;
+                $metadata = json_encode(['discount_percentage' => $discount]);
+                $subscriptionQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, metadata, created_at) 
+                                     VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
                 $subscriptionStmt = $this->db->prepare($subscriptionQuery);
-                $subscriptionStmt->execute([$userId, $newPlanId, $newStartDate, $newEndDate]);
+                $subscriptionStmt->execute([$userId, $newPlanId, $newStartDate, $newEndDate, $metadata]);
                 
                 error_log("ADMIN_PLAN_CHANGE: User {$userId} - Subscription atualizada - Plan ID: {$newPlanId}, Desconto: {$newDiscountPercentage}%");
             }
