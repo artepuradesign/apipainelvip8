@@ -220,7 +220,7 @@ class DashboardAdminController {
                              COALESCE(SUM(wt.amount), 0) as total_spent,
                              MAX(uss.last_activity) as last_login,
                              usub.plan_id as subscription_plan_id,
-                             p.discount_percentage as plan_discount_percentage
+                             COALESCE(usub.discount_percentage, p.discount_percentage, 0) as plan_discount_percentage
                       FROM users u
                       LEFT JOIN consultations c ON u.id = c.user_id
                       LEFT JOIN wallet_transactions wt ON u.id = wt.user_id AND wt.type = 'saida'
@@ -759,6 +759,14 @@ class DashboardAdminController {
             
             $discount = (int)$newData['plan_discount'];
             
+            // Garantir que a coluna discount_percentage existe em user_subscriptions
+            try {
+                $this->db->exec("ALTER TABLE user_subscriptions ADD COLUMN discount_percentage int(11) DEFAULT 0");
+                error_log("ADMIN_DISCOUNT: Coluna discount_percentage adicionada a user_subscriptions");
+            } catch (Exception $e) {
+                // Coluna já existe, ignorar
+            }
+            
             // Buscar a subscription ativa do usuário
             $subQuery = "SELECT usub.id, usub.plan_id FROM user_subscriptions usub WHERE usub.user_id = ? AND usub.status = 'active' ORDER BY usub.id DESC LIMIT 1";
             $subStmt = $this->db->prepare($subQuery);
@@ -766,12 +774,12 @@ class DashboardAdminController {
             $subscription = $subStmt->fetch(PDO::FETCH_ASSOC);
             
             if ($subscription) {
-                // Atualizar o discount_percentage no plano associado à subscription
-                $updateQuery = "UPDATE plans SET discount_percentage = ?, updated_at = NOW() WHERE id = ?";
+                // Atualizar discount_percentage diretamente na subscription do usuário (não no plano compartilhado)
+                $updateQuery = "UPDATE user_subscriptions SET discount_percentage = ? WHERE id = ?";
                 $updateStmt = $this->db->prepare($updateQuery);
-                $updateStmt->execute([$discount, $subscription['plan_id']]);
+                $updateStmt->execute([$discount, $subscription['id']]);
                 
-                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Plan ID: {$subscription['plan_id']}, Desconto atualizado para: {$discount}%");
+                error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription ID: {$subscription['id']}, Desconto atualizado para: {$discount}%");
             } else {
                 // Sem subscription ativa - buscar o tipoplano do usuário e criar subscription
                 $userQuery = "SELECT tipoplano, data_inicio, data_fim FROM users WHERE id = ?";
@@ -788,27 +796,22 @@ class DashboardAdminController {
                 $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
                 
                 if (!$plan) {
-                    // Criar o plano se não existir (ex: Pré-Pago)
-                    $createPlanQuery = "INSERT INTO plans (name, price, discount_percentage, is_active, created_at, updated_at) VALUES (?, 0, ?, 1, NOW(), NOW())";
+                    $createPlanQuery = "INSERT INTO plans (name, price, discount_percentage, is_active, created_at, updated_at) VALUES (?, 0, 0, 1, NOW(), NOW())";
                     $createPlanStmt = $this->db->prepare($createPlanQuery);
-                    $createPlanStmt->execute([$planName, $discount]);
+                    $createPlanStmt->execute([$planName]);
                     $planId = $this->db->lastInsertId();
                     error_log("ADMIN_DISCOUNT_UPDATE: Plano '{$planName}' criado com ID {$planId}");
                 } else {
                     $planId = $plan['id'];
-                    // Atualizar desconto no plano existente
-                    $updatePlanQuery = "UPDATE plans SET discount_percentage = ?, updated_at = NOW() WHERE id = ?";
-                    $updatePlanStmt = $this->db->prepare($updatePlanQuery);
-                    $updatePlanStmt->execute([$discount, $planId]);
                 }
                 
-                // Criar subscription ativa para o usuário
+                // Criar subscription ativa com o desconto PER-USER
                 $startDate = $userData['data_inicio'] ?? date('Y-m-d');
                 $endDate = $userData['data_fim'] ?? date('Y-m-d', strtotime('+30 days'));
                 
-                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, created_at) VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, NOW())";
+                $createSubQuery = "INSERT INTO user_subscriptions (user_id, plan_id, status, start_date, end_date, payment_method, amount_paid, auto_renew, discount_percentage, created_at) VALUES (?, ?, 'active', ?, ?, 'admin', 0.00, 0, ?, NOW())";
                 $createSubStmt = $this->db->prepare($createSubQuery);
-                $createSubStmt->execute([$userId, $planId, $startDate, $endDate]);
+                $createSubStmt->execute([$userId, $planId, $startDate, $endDate, $discount]);
                 
                 error_log("ADMIN_DISCOUNT_UPDATE: User {$userId} - Subscription criada para plano '{$planName}' (ID: {$planId}), Desconto: {$discount}%");
             }

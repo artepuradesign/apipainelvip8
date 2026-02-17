@@ -128,17 +128,20 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     if (checked) {
       const days = customDays > 0 ? customDays : 30;
       setCustomDays(days);
-      const currentEndDate = originalPlanEndRef.current 
-        ? new Date(originalPlanEndRef.current) 
-        : new Date();
-      const newEndDate = new Date(currentEndDate.getTime() + days * 86400000);
+      // SETAR dias a partir de HOJE, não somar ao original
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const newStartDate = format(today, 'yyyy-MM-dd');
+      const newEndDate = new Date(today.getTime() + days * 86400000);
       onUserChange({
         ...user,
+        planStartDate: newStartDate,
         planEndDate: format(newEndDate, 'yyyy-MM-dd'),
       });
     } else {
       onUserChange({
         ...user,
+        planStartDate: originalPlanStartRef.current,
         planEndDate: originalPlanEndRef.current,
       });
     }
@@ -147,17 +150,20 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const handleCustomDaysChange = (value: number) => {
     setCustomDays(value);
     if (value > 0) {
-      const currentEndDate = originalPlanEndRef.current 
-        ? new Date(originalPlanEndRef.current) 
-        : new Date();
-      const newEndDate = new Date(currentEndDate.getTime() + value * 86400000);
+      // SETAR dias a partir de HOJE, não somar ao original
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const newStartDate = format(today, 'yyyy-MM-dd');
+      const newEndDate = new Date(today.getTime() + value * 86400000);
       onUserChange({
         ...user,
+        planStartDate: newStartDate,
         planEndDate: format(newEndDate, 'yyyy-MM-dd'),
       });
     } else {
       onUserChange({
         ...user,
+        planStartDate: originalPlanStartRef.current,
         planEndDate: originalPlanEndRef.current,
       });
     }
