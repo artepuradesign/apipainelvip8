@@ -98,7 +98,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       ? originalPlanBalanceRef.current + price
       : originalPlanBalanceRef.current;
 
-    const updates: Partial<User> = { plan: value, planBalance: newPlanBalance };
+    const discount = selectedPlan?.discount_percentage ?? 0;
+    const updates: Partial<User> = { plan: value, planBalance: newPlanBalance, planDiscount: discount };
 
     if (addPlanDays && days > 0) {
       const today = new Date();
