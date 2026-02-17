@@ -113,11 +113,13 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
 
   const handleToggleAddPlanDays = (checked: boolean) => {
     setAddPlanDays(checked);
-    if (checked && customDays > 0) {
+    if (checked) {
+      const days = customDays > 0 ? customDays : 30;
+      setCustomDays(days);
       const currentEndDate = originalPlanEndRef.current 
         ? new Date(originalPlanEndRef.current) 
         : new Date();
-      const newEndDate = new Date(currentEndDate.getTime() + customDays * 86400000);
+      const newEndDate = new Date(currentEndDate.getTime() + days * 86400000);
       onUserChange({
         ...user,
         planEndDate: format(newEndDate, 'yyyy-MM-dd'),
@@ -279,28 +281,26 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium block">Adicionar valor</Label>
+                  <Label className="text-xs font-medium block">Adicionar valor ao saldo</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {selectedPlanPrice > 0 ? formatCurrency(selectedPlanPrice) : 'Selecione um plano'}
+                    {selectedPlanPrice > 0 ? `Plano: ${formatCurrency(selectedPlanPrice)}` : 'Valor manual'}
                   </p>
                 </div>
                 <Switch
                   checked={addPlanBalance}
                   onCheckedChange={handleToggleAddPlanBalance}
-                  disabled={selectedPlanPrice <= 0}
                 />
               </div>
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium block">Adicionar dias</Label>
+                  <Label className="text-xs font-medium block">Definir dias</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias do plano` : 'Selecione um plano'}
+                    {selectedPlanDays > 0 ? `Plano: ${selectedPlanDays} dias` : 'Dias manual'}
                   </p>
                 </div>
                 <Switch
                   checked={addPlanDays}
                   onCheckedChange={handleToggleAddPlanDays}
-                  disabled={selectedPlanDays <= 0}
                 />
               </div>
             </div>
