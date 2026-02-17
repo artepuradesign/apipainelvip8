@@ -93,7 +93,7 @@ const GestaoUsuarios = () => {
           pixKeys: [],
           planStartDate: user.data_inicio || '',
           planEndDate: user.data_fim || '',
-          planDiscount: user.plan_discount || 0,
+          planDiscount: user.plan_discount || user.discount_percentage || 0,
           subscription: user.subscription
         }));
         
