@@ -9,8 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X } from "lucide-react";
 import { getFullApiUrl } from '@/utils/apiHelper';
 import type { User } from "@/types/user";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { nowBrasilia, todayBrasilia, remainingDaysBR, formatDateBR } from '@/utils/timezone';
 
 
 interface Plan {
@@ -52,16 +51,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       setSelectedPlanPrice(0);
       setSelectedPlanDays(0);
       
-      // Calcular dias restantes a partir de data_fim
-      let remainingDays = 0;
-      if (user.planEndDate) {
-        const endDate = new Date(user.planEndDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        endDate.setHours(0, 0, 0, 0);
-        const diffTime = endDate.getTime() - today.getTime();
-        remainingDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      }
+      // Calcular dias restantes usando fuso de Brasília
+      const remainingDays = remainingDaysBR(user.planEndDate);
       setCustomDays(remainingDays);
       originalRemainingDaysRef.current = remainingDays;
       
@@ -106,10 +97,12 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     if (addPlanDays && days > 0) {
       const totalDays = originalRemainingDaysRef.current + days;
       setCustomDays(totalDays);
-      const today = new Date();
+      const startDate = todayBrasilia();
+      const today = nowBrasilia();
       today.setHours(0, 0, 0, 0);
-      updates.planStartDate = format(today, 'yyyy-MM-dd');
-      updates.planEndDate = format(new Date(today.getTime() + totalDays * 86400000), 'yyyy-MM-dd');
+      const endDate = new Date(today.getTime() + totalDays * 86400000);
+      updates.planStartDate = startDate;
+      updates.planEndDate = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
     } else {
       // Sem adicionar dias, manter dias restantes originais e datas originais
       setCustomDays(originalRemainingDaysRef.current);
@@ -136,12 +129,15 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       const planDays = selectedPlanDays > 0 ? selectedPlanDays : 0;
       const totalDays = originalRemainingDaysRef.current + planDays;
       setCustomDays(totalDays);
-      const today = new Date();
+      const startDate = todayBrasilia();
+      const today = nowBrasilia();
       today.setHours(0, 0, 0, 0);
+      const endDate = new Date(today.getTime() + totalDays * 86400000);
+      const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
       onUserChange({
         ...user,
-        planStartDate: format(today, 'yyyy-MM-dd'),
-        planEndDate: format(new Date(today.getTime() + totalDays * 86400000), 'yyyy-MM-dd'),
+        planStartDate: startDate,
+        planEndDate: endStr,
       });
     } else {
       // Voltar aos dias restantes originais
@@ -156,22 +152,22 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
 
   const handleCustomDaysChange = (value: number) => {
     setCustomDays(value);
-    // Sempre atualizar as datas: hoje + X dias
-    const today = new Date();
+    const startDate = todayBrasilia();
+    const today = nowBrasilia();
     today.setHours(0, 0, 0, 0);
-    const newStartDate = format(today, 'yyyy-MM-dd');
     if (value > 0) {
-      const newEndDate = new Date(today.getTime() + value * 86400000);
+      const endDate = new Date(today.getTime() + value * 86400000);
+      const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
       onUserChange({
         ...user,
-        planStartDate: newStartDate,
-        planEndDate: format(newEndDate, 'yyyy-MM-dd'),
+        planStartDate: startDate,
+        planEndDate: endStr,
       });
     } else {
       onUserChange({
         ...user,
-        planStartDate: newStartDate,
-        planEndDate: newStartDate,
+        planStartDate: startDate,
+        planEndDate: startDate,
       });
     }
   };
@@ -339,7 +335,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                   <Calendar className="h-3 w-3" /> Início
                 </Label>
                 <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
-                  {user.planStartDate ? format(parseISO(user.planStartDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                  {user.planStartDate ? formatDateBR(user.planStartDate) : '—'}
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -347,7 +343,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                   <Calendar className="h-3 w-3" /> Término
                 </Label>
                 <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
-                  {user.planEndDate ? format(parseISO(user.planEndDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                  {user.planEndDate ? formatDateBR(user.planEndDate) : '—'}
                 </div>
               </div>
               <div className="space-y-1.5">
