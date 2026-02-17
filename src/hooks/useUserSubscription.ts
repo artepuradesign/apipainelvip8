@@ -123,8 +123,8 @@ export const useUserSubscription = () => {
     return subscriptionService.calculateDiscountedPrice(originalPrice, finalDiscountPercentage);
   };
 
-  const refreshSubscription = () => {
-    checkUserSubscription();
+  const refreshSubscription = async () => {
+    await checkUserSubscription();
   };
 
   useEffect(() => {
