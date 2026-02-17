@@ -42,6 +42,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const originalPlanBalanceRef = useRef<number>(0);
   const originalPlanStartRef = useRef<string | undefined>(undefined);
   const originalPlanEndRef = useRef<string | undefined>(undefined);
+  const originalRemainingDaysRef = useRef<number>(0);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -62,6 +63,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
         remainingDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       }
       setCustomDays(remainingDays);
+      originalRemainingDaysRef.current = remainingDays;
       
       originalPlanBalanceRef.current = user.planBalance || 0;
       originalPlanStartRef.current = user.planStartDate;
@@ -92,7 +94,6 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     const days = selectedPlan?.duration_days || 0;
     setSelectedPlanPrice(price);
     setSelectedPlanDays(days);
-    setCustomDays(days);
 
     const newPlanBalance = addPlanBalance && price > 0
       ? originalPlanBalanceRef.current + price
@@ -101,12 +102,17 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     const discount = selectedPlan?.discount_percentage ?? 0;
     const updates: Partial<User> = { plan: value, planBalance: newPlanBalance, planDiscount: discount };
 
+    // Se "Adicionar dias" está ativo, somar dias do plano aos restantes originais
     if (addPlanDays && days > 0) {
+      const totalDays = originalRemainingDaysRef.current + days;
+      setCustomDays(totalDays);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       updates.planStartDate = format(today, 'yyyy-MM-dd');
-      updates.planEndDate = format(new Date(today.getTime() + days * 86400000), 'yyyy-MM-dd');
+      updates.planEndDate = format(new Date(today.getTime() + totalDays * 86400000), 'yyyy-MM-dd');
     } else {
+      // Sem adicionar dias, manter dias restantes originais e datas originais
+      setCustomDays(originalRemainingDaysRef.current);
       updates.planStartDate = originalPlanStartRef.current;
       updates.planEndDate = originalPlanEndRef.current;
     }
@@ -126,19 +132,20 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const handleToggleAddPlanDays = (checked: boolean) => {
     setAddPlanDays(checked);
     if (checked) {
-      const days = customDays > 0 ? customDays : 30;
-      setCustomDays(days);
-      // SETAR dias a partir de HOJE, não somar ao original
+      // Somar dias do plano selecionado aos dias restantes originais
+      const planDays = selectedPlanDays > 0 ? selectedPlanDays : 0;
+      const totalDays = originalRemainingDaysRef.current + planDays;
+      setCustomDays(totalDays);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const newStartDate = format(today, 'yyyy-MM-dd');
-      const newEndDate = new Date(today.getTime() + days * 86400000);
       onUserChange({
         ...user,
-        planStartDate: newStartDate,
-        planEndDate: format(newEndDate, 'yyyy-MM-dd'),
+        planStartDate: format(today, 'yyyy-MM-dd'),
+        planEndDate: format(new Date(today.getTime() + totalDays * 86400000), 'yyyy-MM-dd'),
       });
     } else {
+      // Voltar aos dias restantes originais
+      setCustomDays(originalRemainingDaysRef.current);
       onUserChange({
         ...user,
         planStartDate: originalPlanStartRef.current,
@@ -350,8 +357,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                 <Input
                   type="number"
                   min="0"
-                  className="h-9 text-sm font-semibold text-primary"
+                  className={`h-9 text-sm font-semibold text-primary ${!addPlanDays ? 'bg-muted cursor-not-allowed' : ''}`}
                   value={customDays}
+                  readOnly={!addPlanDays}
+                  disabled={!addPlanDays}
                   onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
                 />
               </div>
