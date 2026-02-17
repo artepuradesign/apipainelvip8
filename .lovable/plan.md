@@ -1,69 +1,64 @@
-# Plano de Implementacao: Reordenacao do Menu e Cobranca Condicional
 
-## Status: ✅ IMPLEMENTADO
 
----
+## Corrigir Criacao de Usuario e Adicionar Edicao de Dias nos Dois Modais
 
-## Resumo das Alteracoes Realizadas
+### Problemas Identificados
 
-### 1. Reordenacao do Menu Lateral ✅
-**Arquivo**: `src/components/dashboard/layout/sidebar/assinanteSidebarItems.ts`
+1. **Novo Usuario nao salva dados corretamente**: O `handleAddUser` em `GestaoUsuarios.tsx` usa `referralRegistrationService.registerWithReferral` que envia apenas dados basicos (email, password, full_name, user_role, aceite_termos) para `/auth/register`. Campos como CPF, telefone, plano, saldo, datas nao sao enviados. Alem disso, o `AddUserModal` nao repassa os dados de plano/saldo/datas para o componente pai.
 
-Nova ordem:
-1. Dashboard (apenas suporte)
-2. **Painel de Controle** (movido para cima)
-3. **Minha Conta** (movido para baixo)
-4. Paineis Disponiveis
-5. Administracao (apenas suporte)
-6. Integracoes (apenas suporte)
-7. Indicacoes
+2. **Falta opcao de alterar dias manualmente**: Ambos os modais permitem apenas adicionar os dias fixos do plano. O administrador deveria poder digitar quantos dias deseja adicionar.
 
-### 2. Cobranca Condicional nos Modulos ✅
+### Solucao
 
-#### Arquivos Alterados (remoção de `chargeAlwaysExceptHistory`):
-- ConsultarCpfCns.tsx
-- ConsultarCpfPis.tsx
-- ConsultarCpfScore.tsx
-- ConsultarCpfTitulo.tsx
-- ConsultarCpfCovid.tsx
-- ConsultarCpfMei.tsx
-- ConsultarCpfEmpresasSocio.tsx
-- ConsultarCpfDividasAtivas.tsx
-- ConsultarCpfAuxilioEmergencia.tsx
-- ConsultarCpfRais.tsx
-- ConsultarCpfInss.tsx
-- ConsultarCpfSenhasEmail.tsx
-- ConsultarCpfSenhasCpf.tsx
+**Estrategia em 2 etapas para criacao de usuario** (como sugerido pelo usuario):
+1. Primeiro: Registrar o usuario via `/auth/register` (cria usuario basico)
+2. Segundo: Atualizar os dados complementares via `adminUserApiService.updateUser` (plano, saldo, datas, CPF, etc.)
 
-#### Logica de Cobranca Expandida em ConsultarCpfPuxaTudo.tsx:
-- `isConditionalChargeModeRaw` agora inclui `isExclusiveMode` (qualquer onlySection)
-- `getConditionalRequiredCount()` mapeado para todas as secoes:
-  - cns → cnsCount
-  - pis → result.pis
-  - titulo → result.titulo_eleitor
-  - score → result.score > 0
-  - vacinas → vacinasCount
-  - empresas_socio → empresasSocioCount
-  - cnpj_mei → cnpjMeiCount
-  - dividas_ativas → dividasAtivasCount
-  - auxilio_emergencial → auxiliosEmergenciais.length
-  - rais → rais.length
-  - inss → inssCount
-  - senhas_email → senhaEmailCount
-  - senhas_cpf → senhaCpfCount
+### Alteracoes por Arquivo
 
----
+**1. `src/components/dashboard/users/AddUserModal.tsx`**
+- Alterar `onSubmit` para receber dados extras (planBalance, planStartDate, planEndDate, planDiscount)
+- No `handleSubmit`, chamar `onSubmit` passando os dados completos do plano
+- Adicionar campo de input editavel para quantidade de dias (ao lado do switch "Adicionar dias")
+- O administrador pode digitar manualmente quantos dias quer adicionar
 
-## Fluxo de Usuario Apos Implementacao
+**2. `src/components/dashboard/users/EditUserModal.tsx`**
+- Adicionar campo de input editavel para quantidade de dias (ao lado do switch "Adicionar dias")
+- Quando o switch estiver ativo, o admin pode alterar o numero de dias manualmente
+- A data de termino recalcula automaticamente ao alterar o valor
 
-1. Usuario digita CPF e clica "Consultar"
-2. Sistema busca dados no banco
-3. **SE dados encontrados na secao especifica**:
-   - Exibe resultados
-   - Registra consulta e debita saldo
-   - Toast: "✅ Consulta cobrada! Valor: R$ X.XX"
-4. **SE dados NAO encontrados na secao**:
-   - Exibe mensagem de "nao encontrado"
-   - NAO registra consulta
-   - NAO debita saldo
-   - Toast: "❌ Nenhum registro encontrado. Consulta nao cobrada."
+**3. `src/pages/dashboard/GestaoUsuarios.tsx`**
+- Alterar `handleAddUser` para:
+  - Passo 1: Registrar usuario via `referralRegistrationService.registerWithReferral`
+  - Passo 2: Obter o ID do usuario criado da resposta
+  - Passo 3: Chamar `adminUserApiService.updateUser` com os dados complementares (tipoplano, saldo, saldo_plano, cpf, telefone, endereco, data_inicio, data_fim)
+- Atualizar a interface do `AddUserModal` para receber callback com dados extras
+- Alterar o `onSubmit` do `AddUserModal` para aceitar parametros de plano
+
+### Detalhes Tecnicos
+
+```text
+FLUXO DE CRIACAO (CORRIGIDO):
+
+AddUserModal (handleSubmit)
+    |
+    v
+GestaoUsuarios (handleAddUser) recebe dados extras
+    |
+    v
+[PASSO 1] POST /auth/register  -->  { email, password, full_name, user_role, aceite_termos, cpf, telefone }
+    |
+    v  (resposta com user.id)
+    |
+[PASSO 2] PUT /dashboard-admin/users/{id}  -->  { tipoplano, saldo, saldo_plano, data_inicio, data_fim, cpf, telefone, endereco }
+    |
+    v
+Recarrega lista de usuarios
+```
+
+Campo de dias editavel nos dois modais:
+- Input numerico ao lado do switch "Adicionar dias"
+- Valor padrao: `duration_days` do plano selecionado
+- Ao alterar o valor, recalcula a data de termino automaticamente
+- Desabilitado quando o switch esta desligado
+
