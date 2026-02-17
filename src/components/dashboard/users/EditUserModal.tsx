@@ -255,7 +255,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
           {/* Seção: Plano */}
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plano</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="edit-plan" className="text-xs">Plano Atual</Label>
                 {loadingPlans ? (
@@ -293,18 +293,6 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                   value={user.planDiscount || 0}
                   readOnly
                   disabled
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Clock className="h-3 w-3" /> Dias Restantes
-                </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  className="h-9 text-sm font-semibold text-primary"
-                  value={customDays}
-                  onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
                 />
               </div>
             </div>
@@ -353,6 +341,18 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                 <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
                   {user.planEndDate ? format(parseISO(user.planEndDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Dias Restantes
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  className="h-9 text-sm font-semibold text-primary"
+                  value={customDays}
+                  onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
+                />
               </div>
             </div>
           </div>
