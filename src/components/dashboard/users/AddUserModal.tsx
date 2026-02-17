@@ -146,8 +146,11 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
 
   const handleCustomDaysChange = (value: number) => {
     setCustomDays(value);
-    if (addPlanDays && value > 0) {
+    if (value > 0) {
       recalcEndDate(value);
+    } else {
+      setPlanStartDate('');
+      setPlanEndDate('');
     }
   };
 
@@ -346,7 +349,7 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
               </div>
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium block">Definir dias</Label>
+                  <Label className="text-xs font-medium block">Adicionar dias</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
                     {selectedPlanDays > 0 ? `Plano: ${selectedPlanDays} dias` : 'Dias manual'}
                   </p>
@@ -383,9 +386,8 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
                   type="number"
                   min="0"
                   className="h-9 text-sm font-semibold text-primary"
-                  value={addPlanDays ? customDays : 0}
+                  value={customDays}
                   onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
-                  disabled={!addPlanDays}
                 />
               </div>
             </div>

@@ -134,7 +134,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
 
   const handleCustomDaysChange = (value: number) => {
     setCustomDays(value);
-    if (addPlanDays && value > 0) {
+    if (value > 0) {
       const currentEndDate = originalPlanEndRef.current 
         ? new Date(originalPlanEndRef.current) 
         : new Date();
@@ -142,6 +142,11 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       onUserChange({
         ...user,
         planEndDate: format(newEndDate, 'yyyy-MM-dd'),
+      });
+    } else {
+      onUserChange({
+        ...user,
+        planEndDate: originalPlanEndRef.current,
       });
     }
   };
@@ -293,7 +298,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
               </div>
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium block">Definir dias</Label>
+                  <Label className="text-xs font-medium block">Adicionar dias</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
                     {selectedPlanDays > 0 ? `Plano: ${selectedPlanDays} dias` : 'Dias manual'}
                   </p>
@@ -324,15 +329,14 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Dias a adicionar
+                  <Clock className="h-3 w-3" /> Dias
                 </Label>
                 <Input
                   type="number"
                   min="0"
                   className="h-9 text-sm font-semibold text-primary"
-                  value={addPlanDays ? customDays : 0}
+                  value={customDays}
                   onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
-                  disabled={!addPlanDays}
                 />
               </div>
             </div>
