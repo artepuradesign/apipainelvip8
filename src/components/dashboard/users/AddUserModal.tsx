@@ -1,11 +1,26 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User as UserIcon, Mail, CreditCard, FileText, Save, X, UserPlus } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X, UserPlus } from 'lucide-react';
+import { getFullApiUrl } from '@/utils/apiHelper';
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { getDiscount } from '@/utils/planUtils';
+
+interface Plan {
+  id: number;
+  name: string;
+  slug: string;
+  price: number;
+  priceFormatted: string;
+  discount_percentage?: number;
+  duration_days?: number;
+}
 
 interface AddUserModalProps {
   isOpen: boolean;
@@ -27,6 +42,100 @@ interface AddUserModalProps {
 }
 
 const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUserModalProps) => {
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [addPlanBalance, setAddPlanBalance] = useState(false);
+  const [addPlanDays, setAddPlanDays] = useState(false);
+  const [selectedPlanPrice, setSelectedPlanPrice] = useState(0);
+  const [selectedPlanDays, setSelectedPlanDays] = useState(0);
+  const [planDiscount, setPlanDiscount] = useState(0);
+  const [planStartDate, setPlanStartDate] = useState('');
+  const [planEndDate, setPlanEndDate] = useState('');
+  const [planBalance, setPlanBalance] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchPlans();
+      setAddPlanBalance(false);
+      setAddPlanDays(false);
+      setSelectedPlanPrice(0);
+      setSelectedPlanDays(0);
+      setPlanDiscount(0);
+      setPlanStartDate('');
+      setPlanEndDate('');
+      setPlanBalance(0);
+    }
+  }, [isOpen]);
+
+  const fetchPlans = async () => {
+    setLoadingPlans(true);
+    try {
+      const response = await fetch(getFullApiUrl('/plans/active'));
+      const result = await response.json();
+      if (result.success && result.data) {
+        setPlans(result.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar planos:', error);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const handlePlanChange = (value: string) => {
+    const selectedPlan = plans.find(p => p.name === value);
+    const discount = selectedPlan?.discount_percentage ?? getDiscount(value);
+    const price = selectedPlan?.price || 0;
+    const days = selectedPlan?.duration_days || 0;
+    setSelectedPlanPrice(price);
+    setSelectedPlanDays(days);
+    setPlanDiscount(discount);
+
+    const newBalance = addPlanBalance && price > 0 ? price : 0;
+    setPlanBalance(newBalance);
+
+    if (addPlanDays && days > 0) {
+      const today = new Date();
+      setPlanStartDate(format(today, 'yyyy-MM-dd'));
+      setPlanEndDate(format(new Date(today.getTime() + days * 86400000), 'yyyy-MM-dd'));
+    } else {
+      setPlanStartDate('');
+      setPlanEndDate('');
+    }
+
+    setNewUser({ ...newUser, plan: value });
+  };
+
+  const handleToggleAddPlanBalance = (checked: boolean) => {
+    setAddPlanBalance(checked);
+    setPlanBalance(checked && selectedPlanPrice > 0 ? selectedPlanPrice : 0);
+  };
+
+  const handleToggleAddPlanDays = (checked: boolean) => {
+    setAddPlanDays(checked);
+    if (checked && selectedPlanDays > 0) {
+      const today = new Date();
+      setPlanStartDate(format(today, 'yyyy-MM-dd'));
+      setPlanEndDate(format(new Date(today.getTime() + selectedPlanDays * 86400000), 'yyyy-MM-dd'));
+    } else {
+      setPlanStartDate('');
+      setPlanEndDate('');
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const handleSubmit = () => {
+    // Inject plan-related data into newUser before submitting
+    setNewUser({
+      ...newUser,
+      balance: planBalance,
+    });
+    onSubmit();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-2xl p-0 gap-0 overflow-hidden">
@@ -103,10 +212,67 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
             </div>
           </div>
 
-          {/* Seção: Configurações */}
+          {/* Seção: Financeiro */}
           <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Configurações</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Financeiro</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="add-balance" className="text-xs flex items-center gap-1.5">
+                  <CreditCard className="h-3 w-3" /> Saldo da Carteira
+                </Label>
+                <Input
+                  id="add-balance"
+                  type="number"
+                  step="0.01"
+                  className="h-9 text-sm"
+                  value={newUser.balance}
+                  onChange={(e) => setNewUser({ ...newUser, balance: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="add-plan-balance" className="text-xs flex items-center gap-1.5">
+                  <Wallet className="h-3 w-3" /> Saldo do Plano
+                </Label>
+                <Input
+                  id="add-plan-balance"
+                  type="number"
+                  step="0.01"
+                  className="h-9 text-sm"
+                  value={planBalance}
+                  onChange={(e) => setPlanBalance(parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Seção: Plano */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plano</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="add-plan" className="text-xs">Plano</Label>
+                {loadingPlans ? (
+                  <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="text-xs text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <Select value={newUser.plan} onValueChange={handlePlanChange}>
+                    <SelectTrigger id="add-plan" className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione um plano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.name}>
+                          {plan.name} - {plan.priceFormatted}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="add-role" className="text-xs">Tipo de Usuário</Label>
                 <Select value={newUser.role} onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}>
@@ -119,18 +285,62 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="add-balance" className="text-xs flex items-center gap-1.5">
-                  <CreditCard className="h-3 w-3" /> Saldo Inicial
-                </Label>
-                <Input
-                  id="add-balance"
-                  type="number"
-                  className="h-9 text-sm"
-                  value={newUser.balance}
-                  onChange={(e) => setNewUser({ ...newUser, balance: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
+            </div>
+
+            {/* Switches: Adicionar valor e dias */}
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
+                <div className="min-w-0">
+                  <Label className="text-xs font-medium block">Adicionar valor</Label>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {selectedPlanPrice > 0 ? formatCurrency(selectedPlanPrice) : 'Selecione um plano'}
+                  </p>
+                </div>
+                <Switch
+                  checked={addPlanBalance}
+                  onCheckedChange={handleToggleAddPlanBalance}
+                  disabled={selectedPlanPrice <= 0}
                 />
+              </div>
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/40">
+                <div className="min-w-0">
+                  <Label className="text-xs font-medium block">Adicionar dias</Label>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias` : 'Selecione um plano'}
+                  </p>
+                </div>
+                <Switch
+                  checked={addPlanDays}
+                  onCheckedChange={handleToggleAddPlanDays}
+                  disabled={selectedPlanDays <= 0}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> Início
+                </Label>
+                <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
+                  {planStartDate ? format(new Date(planStartDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> Término
+                </Label>
+                <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted text-foreground">
+                  {planEndDate ? format(new Date(planEndDate), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Dias
+                </Label>
+                <div className="h-9 text-sm px-3 flex items-center rounded-md border bg-muted font-semibold text-primary">
+                  {selectedPlanDays > 0 && addPlanDays ? `${selectedPlanDays} dias` : '—'}
+                </div>
               </div>
             </div>
           </div>
@@ -159,7 +369,7 @@ const AddUserModal = ({ isOpen, onClose, newUser, setNewUser, onSubmit }: AddUse
             <X className="h-3.5 w-3.5" />
             Cancelar
           </Button>
-          <Button size="sm" onClick={onSubmit} className="gap-1.5">
+          <Button size="sm" onClick={handleSubmit} className="gap-1.5">
             <Save className="h-3.5 w-3.5" />
             Criar Usuário
           </Button>
