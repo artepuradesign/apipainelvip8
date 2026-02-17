@@ -5,11 +5,12 @@ export interface User {
   name: string;
   email: string;
   role: 'assinante' | 'suporte';
-  user_role?: 'assinante' | 'suporte' | 'admin'; // Role original da API
+  user_role?: 'assinante' | 'suporte' | 'admin';
   plan: string;
   balance: number;
-  planBalance?: number; // Saldo do plano
+  planBalance?: number;
   isActive: boolean;
+  status?: 'ativo' | 'inativo' | 'suspenso' | 'pendente';
   createdAt: string;
   lastLogin?: string;
   cpf?: string;

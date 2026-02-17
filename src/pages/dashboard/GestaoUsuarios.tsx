@@ -49,7 +49,8 @@ const GestaoUsuarios = () => {
     cpf: '',
     phone: '',
     address: '',
-    notes: ''
+    notes: '',
+    status: 'ativo' as 'ativo' | 'inativo' | 'suspenso' | 'pendente'
   });
 
   useEffect(() => {
@@ -84,6 +85,7 @@ const GestaoUsuarios = () => {
           balance: user.balance || user.saldo || 0,
           planBalance: user.saldo_plano || 0,
           isActive: user.status === 'ativo',
+          status: user.status || 'pendente',
           createdAt: user.created_at || new Date().toISOString(),
           lastLogin: user.last_login || user.ultimo_login || '',
           cpf: user.cpf || '',
@@ -155,6 +157,7 @@ const GestaoUsuarios = () => {
           endereco: newUser.address,
           plan_discount: extraData.planDiscount,
           notes: newUser.notes,
+          status: newUser.status,
         };
 
         if (extraData.planStartDate) {
@@ -186,7 +189,8 @@ const GestaoUsuarios = () => {
         cpf: '',
         phone: '',
         address: '',
-        notes: ''
+        notes: '',
+        status: 'ativo'
       });
       setShowAddForm(false);
       toast.success('Usuário criado com sucesso! Senha padrão: 123456');
@@ -222,7 +226,7 @@ const GestaoUsuarios = () => {
         cpf: editingUser.cpf,
         telefone: editingUser.phone,
         endereco: editingUser.address,
-        status: editingUser.isActive ? 'ativo' : 'inativo',
+        status: editingUser.status || (editingUser.isActive ? 'ativo' : 'inativo'),
         plan_discount: editingUser.planDiscount || 0,
         data_inicio: editingUser.planStartDate,
         data_fim: editingUser.planEndDate,
