@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Calendar, Clock, Wallet, User as UserIcon, Mail, CreditCard, Percent, FileText, Save, X } from "lucide-react";
 import { getFullApiUrl } from '@/utils/apiHelper';
 import type { User } from "@/types/user";
-import { format, differenceInDays, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getDiscount } from '@/utils/planUtils';
 
@@ -38,6 +38,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
   const [addPlanDays, setAddPlanDays] = useState(false);
   const [selectedPlanPrice, setSelectedPlanPrice] = useState(0);
   const [selectedPlanDays, setSelectedPlanDays] = useState(0);
+  const [customDays, setCustomDays] = useState(0);
   const originalPlanBalanceRef = useRef<number>(0);
   const originalPlanStartRef = useRef<string | undefined>(undefined);
   const originalPlanEndRef = useRef<string | undefined>(undefined);
@@ -49,6 +50,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
       setAddPlanDays(false);
       setSelectedPlanPrice(0);
       setSelectedPlanDays(0);
+      setCustomDays(0);
       originalPlanBalanceRef.current = user.planBalance || 0;
       originalPlanStartRef.current = user.planStartDate;
       originalPlanEndRef.current = user.planEndDate;
@@ -79,6 +81,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     const days = selectedPlan?.duration_days || 0;
     setSelectedPlanPrice(price);
     setSelectedPlanDays(days);
+    setCustomDays(days);
 
     const newPlanBalance = addPlanBalance && price > 0
       ? originalPlanBalanceRef.current + price
@@ -87,9 +90,10 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     const updates: Partial<User> = { plan: value, planDiscount: discount, planBalance: newPlanBalance };
 
     if (addPlanDays && days > 0) {
-      const today = new Date();
-      updates.planStartDate = format(today, 'yyyy-MM-dd');
-      updates.planEndDate = format(new Date(today.getTime() + days * 86400000), 'yyyy-MM-dd');
+      const currentEndDate = originalPlanEndRef.current 
+        ? new Date(originalPlanEndRef.current) 
+        : new Date();
+      updates.planEndDate = format(new Date(currentEndDate.getTime() + days * 86400000), 'yyyy-MM-dd');
     } else {
       updates.planStartDate = originalPlanStartRef.current;
       updates.planEndDate = originalPlanEndRef.current;
@@ -109,12 +113,11 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
 
   const handleToggleAddPlanDays = (checked: boolean) => {
     setAddPlanDays(checked);
-    if (checked && selectedPlanDays > 0) {
-      // Somar dias à data de término atual (ou original), sem alterar data de início
+    if (checked && customDays > 0) {
       const currentEndDate = originalPlanEndRef.current 
         ? new Date(originalPlanEndRef.current) 
         : new Date();
-      const newEndDate = new Date(currentEndDate.getTime() + selectedPlanDays * 86400000);
+      const newEndDate = new Date(currentEndDate.getTime() + customDays * 86400000);
       onUserChange({
         ...user,
         planEndDate: format(newEndDate, 'yyyy-MM-dd'),
@@ -127,13 +130,24 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
     }
   };
 
+  const handleCustomDaysChange = (value: number) => {
+    setCustomDays(value);
+    if (addPlanDays && value > 0) {
+      const currentEndDate = originalPlanEndRef.current 
+        ? new Date(originalPlanEndRef.current) 
+        : new Date();
+      const newEndDate = new Date(currentEndDate.getTime() + value * 86400000);
+      onUserChange({
+        ...user,
+        planEndDate: format(newEndDate, 'yyyy-MM-dd'),
+      });
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  const daysRemaining = user.planEndDate
-    ? Math.max(0, differenceInDays(parseISO(user.planEndDate), new Date()))
-    : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -280,7 +294,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                 <div className="min-w-0">
                   <Label className="text-xs font-medium block">Adicionar dias</Label>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias` : 'Selecione um plano'}
+                    {selectedPlanDays > 0 ? `${selectedPlanDays} dias do plano` : 'Selecione um plano'}
                   </p>
                 </div>
                 <Switch
@@ -310,13 +324,16 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Dias Restantes
+                  <Clock className="h-3 w-3" /> Dias a adicionar
                 </Label>
-                <div className={`h-9 text-sm px-3 flex items-center rounded-md border bg-muted font-semibold ${
-                  daysRemaining !== null && daysRemaining <= 7 ? 'text-destructive' : 'text-primary'
-                }`}>
-                  {daysRemaining !== null ? `${daysRemaining} dias` : '—'}
-                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  className="h-9 text-sm font-semibold text-primary"
+                  value={addPlanDays ? customDays : 0}
+                  onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
+                  disabled={!addPlanDays}
+                />
               </div>
             </div>
           </div>

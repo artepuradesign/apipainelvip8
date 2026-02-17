@@ -111,8 +111,8 @@ const GestaoUsuarios = () => {
     }
   };
 
-  const handleAddUser = async () => {
-    console.log('handleAddUser called with:', newUser);
+  const handleAddUser = async (extraData: { planBalance: number; planStartDate: string; planEndDate: string; planDiscount: number }) => {
+    console.log('handleAddUser called with:', newUser, 'extraData:', extraData);
     if (!newUser.name || !newUser.email) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
@@ -121,42 +121,74 @@ const GestaoUsuarios = () => {
     setLoading(true);
     
     try {
-      // Usar serviço de registro como o /registration faz
+      // PASSO 1: Registrar usuário básico via /auth/register
       const registrationPayload = {
         email: newUser.email.trim(),
-        password: '123456', // Senha padrão
+        password: '123456',
         full_name: newUser.name.trim(),
         user_role: newUser.role,
         aceite_termos: true,
         cpf: newUser.cpf,
         telefone: newUser.phone,
-        endereco: newUser.address,
-        tipoplano: newUser.plan
       };
 
-      console.log('🌐 [ADD_USER] Criando usuário via API de registro...');
+      console.log('🌐 [ADD_USER] Passo 1: Registrando usuário via /auth/register...');
       const registrationResult = await referralRegistrationService.registerWithReferral(registrationPayload);
 
-      if (registrationResult.success) {
-        await loadUsers();
-        setNewUser({
-          username: '',
-          name: '',
-          email: '',
-          role: 'assinante',
-          plan: 'Pré-Pago',
-          balance: 0,
-          cpf: '',
-          phone: '',
-          address: '',
-          notes: ''
-        });
-        setShowAddForm(false);
-        toast.success('Usuário criado com sucesso! Senha padrão: 123456');
-      } else {
-        console.error('❌ [ADD_USER] Erro na API:', registrationResult.error);
+      if (!registrationResult.success) {
+        console.error('❌ [ADD_USER] Erro no registro:', registrationResult.error);
         toast.error(registrationResult.error || 'Erro ao criar usuário');
+        return;
       }
+
+      // PASSO 2: Obter ID do usuário criado e atualizar dados complementares
+      const createdUserId = registrationResult.user?.id;
+      console.log('✅ [ADD_USER] Usuário registrado, ID:', createdUserId);
+
+      if (createdUserId) {
+        const updatePayload: any = {
+          tipoplano: newUser.plan,
+          saldo: newUser.balance,
+          saldo_plano: extraData.planBalance,
+          cpf: newUser.cpf,
+          telefone: newUser.phone,
+          endereco: newUser.address,
+          plan_discount: extraData.planDiscount,
+        };
+
+        if (extraData.planStartDate) {
+          updatePayload.data_inicio = extraData.planStartDate;
+        }
+        if (extraData.planEndDate) {
+          updatePayload.data_fim = extraData.planEndDate;
+        }
+
+        console.log('🌐 [ADD_USER] Passo 2: Atualizando dados complementares...', updatePayload);
+        const updateResult = await adminUserApiService.updateUser(createdUserId, updatePayload);
+        
+        if (!updateResult.success) {
+          console.warn('⚠️ [ADD_USER] Usuário criado mas erro ao atualizar dados:', updateResult.error);
+          toast.warning('Usuário criado, mas alguns dados não foram salvos. Edite o usuário para completar.');
+        }
+      } else {
+        console.warn('⚠️ [ADD_USER] Não foi possível obter o ID do usuário criado para atualizar dados extras');
+      }
+
+      await loadUsers();
+      setNewUser({
+        username: '',
+        name: '',
+        email: '',
+        role: 'assinante',
+        plan: 'Pré-Pago',
+        balance: 0,
+        cpf: '',
+        phone: '',
+        address: '',
+        notes: ''
+      });
+      setShowAddForm(false);
+      toast.success('Usuário criado com sucesso! Senha padrão: 123456');
     } catch (error) {
       console.error('❌ [ADD_USER] Erro na comunicação:', error);
       toast.error('Erro na comunicação com a API');
