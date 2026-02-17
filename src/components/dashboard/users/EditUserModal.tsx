@@ -353,10 +353,8 @@ const EditUserModal = ({ user, isOpen, onClose, onSave, onUserChange }: EditUser
                 <Input
                   type="number"
                   min="0"
-                  className={`h-9 text-sm font-semibold text-primary ${!addPlanDays ? 'bg-muted cursor-not-allowed' : ''}`}
+                  className="h-9 text-sm font-semibold text-primary"
                   value={customDays}
-                  readOnly={!addPlanDays}
-                  disabled={!addPlanDays}
                   onChange={(e) => handleCustomDaysChange(parseInt(e.target.value) || 0)}
                 />
               </div>
