@@ -126,12 +126,19 @@ const AdminCaixa = () => {
                   
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">
-                        {transaction.user_name || 'N/A'}
+                      <p className="font-semibold text-sm sm:text-base">
+                        {transaction.user_name || 'Usuário não identificado'}
                       </p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        {transaction.description}
-                      </p>
+                      {(transaction as any).user_email && (
+                        <p className="text-xs text-muted-foreground">
+                          📧 {(transaction as any).user_email}
+                        </p>
+                      )}
+                      {(transaction as any).user_login && (
+                        <p className="text-xs text-muted-foreground">
+                          👤 @{(transaction as any).user_login}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right ml-3">
                       <p className="font-bold text-lg sm:text-xl text-green-600">
@@ -140,31 +147,15 @@ const AdminCaixa = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/50">
-                    <div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Antes</p>
-                      <p className="text-xs sm:text-sm font-medium">
-                        {transaction.balance_before != null ? formatCurrency(transaction.balance_before) : 'N/A'}
+                  <div className="pt-2 border-t border-border/50 space-y-1">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {transaction.description}
+                    </p>
+                    {(transaction as any).external_id && (
+                      <p className="text-[10px] sm:text-xs text-muted-foreground font-mono">
+                        ID Externo: {(transaction as any).external_id}
                       </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Depois</p>
-                      <p className="text-xs sm:text-sm font-medium">
-                        {transaction.balance_after != null ? formatCurrency(transaction.balance_after) : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Origem</p>
-                      <p className="text-xs sm:text-sm font-medium">
-                        {transaction.source || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Módulo</p>
-                      <p className="text-xs sm:text-sm font-medium truncate">
-                        {transaction.module_name || 'N/A'}
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
