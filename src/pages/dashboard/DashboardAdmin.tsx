@@ -35,7 +35,7 @@ const DashboardAdmin = () => {
   // Calcular saldo em caixa apenas com pagamentos PIX, Cartão e Criptomoeda
   const filteredCashTransactions = transactions.filter((transaction) => {
     const method = (transaction.payment_method || '').toLowerCase().trim();
-    const allowedMethods = ['pix', 'credit', 'cartao', 'card', 'crypto', 'criptomoeda', 'cripto'];
+    const allowedMethods = ['pix', 'credit', 'cartao', 'card', 'paypal'];
     const isAllowedMethod = allowedMethods.some((m) => method.includes(m));
     const isCredit = transaction.type === 'credit' || transaction.amount > 0;
     return isCredit && isAllowedMethod;
