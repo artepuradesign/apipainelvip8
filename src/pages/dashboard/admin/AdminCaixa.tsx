@@ -101,17 +101,27 @@ const AdminCaixa = () => {
           ) : transactions.length > 0 ? (
             <div className="space-y-3">
               {transactions.slice(0, displayLimit).map((transaction, index) => (
-                <div 
+              <div 
                   key={transaction.id || index}
-                  className="border rounded-lg p-3 sm:p-4 space-y-2 bg-card"
+                  className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm text-muted-foreground">
-                      {formatDate(transaction.created_at)}
-                    </span>
-                    <Badge variant="default" className="text-xs">
-                      {transaction.payment_method?.toUpperCase() || 'N/A'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs font-mono">
+                        #{transaction.id || index}
+                      </Badge>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        {formatDate(transaction.created_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="text-xs">
+                        {transaction.payment_method?.toUpperCase() || 'N/A'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {transaction.type || 'N/A'}
+                      </Badge>
+                    </div>
                   </div>
                   
                   <div className="flex items-center justify-between">
@@ -119,17 +129,41 @@ const AdminCaixa = () => {
                       <p className="font-medium text-sm sm:text-base truncate">
                         {transaction.user_name || 'N/A'}
                       </p>
-                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {transaction.description}
                       </p>
                     </div>
                     <div className="text-right ml-3">
-                      <p className="font-bold text-sm sm:text-base text-green-600">
+                      <p className="font-bold text-lg sm:text-xl text-green-600">
                         {formatCurrency(transaction.amount)}
                       </p>
-                      <Badge variant="outline" className="text-xs">
-                        {transaction.type || 'N/A'}
-                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/50">
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Antes</p>
+                      <p className="text-xs sm:text-sm font-medium">
+                        {transaction.balance_before != null ? formatCurrency(transaction.balance_before) : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Depois</p>
+                      <p className="text-xs sm:text-sm font-medium">
+                        {transaction.balance_after != null ? formatCurrency(transaction.balance_after) : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Origem</p>
+                      <p className="text-xs sm:text-sm font-medium">
+                        {transaction.source || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Módulo</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">
+                        {transaction.module_name || 'N/A'}
+                      </p>
                     </div>
                   </div>
                 </div>
