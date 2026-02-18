@@ -8,14 +8,12 @@ import LoginForm from '@/components/auth/LoginForm';
 import LoginLoadingScreen from '@/components/auth/LoginLoadingScreen';
 import LoginHeader from '@/components/auth/LoginHeader';
 import LoginFooter from '@/components/auth/LoginFooter';
-import SuspendedAccountAlert from '@/components/auth/SuspendedAccountAlert';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuspended, setShowSuspended] = useState(false);
   const navigate = useNavigate();
   const { signIn, user, loading } = useAuth();
 
@@ -31,6 +29,7 @@ const Login = () => {
   // Carregar credenciais salvas apenas dos cookies
   useEffect(() => {
     if (!loading && !user) {
+      // Carregar apenas email salvo (sem senha por segurança)
       const savedEmail = localStorage.getItem('saved_email');
 
       if (savedEmail) {
@@ -70,23 +69,20 @@ const Login = () => {
         
         if (rememberMe) {
           localStorage.setItem('saved_email', formData.email);
+          // Não salvar senha por segurança
         } else {
           localStorage.removeItem('saved_email');
         }
         
+        // Redirecionar diretamente para o dashboard
         if (result.redirectTo) {
           console.log('🎯 [LOGIN] Redirecionando diretamente para:', result.redirectTo);
           navigate(result.redirectTo, { replace: true });
         }
         
       } else {
-        // Verificar se é conta suspensa
-        if (result.message === '__SUSPENDED__') {
-          setShowSuspended(true);
-        } else {
-          console.error('❌ [LOGIN] Falha no login:', result.message);
-          toast.error(result.message || 'Email ou senha incorretos');
-        }
+        console.error('❌ [LOGIN] Falha no login:', result.message);
+        toast.error(result.message || 'Email ou senha incorretos');
       }
     } catch (error) {
       console.error('❌ [LOGIN] Erro no processo:', error);
@@ -122,11 +118,6 @@ const Login = () => {
           </div>
         </div>
       </div>
-
-      <SuspendedAccountAlert 
-        isOpen={showSuspended} 
-        onClose={() => setShowSuspended(false)} 
-      />
     </PageLayout>
   );
 };
