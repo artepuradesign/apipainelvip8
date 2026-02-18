@@ -25,10 +25,11 @@ class DashboardAdminController {
             $cashStmt->execute();
             $cashResult = $cashStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Planos Comprados - soma o valor total dos planos comprados  
+            // Planos Comprados - soma apenas PIX, Cartão e PayPal (exclui cupom)
             $plansQuery = "SELECT COALESCE(SUM(CAST(amount AS DECIMAL(10,2))), 0) as plan_sales 
                           FROM central_cash 
                           WHERE transaction_type = 'plano'
+                          AND payment_method IN ('pix', 'credit', 'paypal')
                           AND amount > 0";
             $plansStmt = $this->db->prepare($plansQuery);
             $plansStmt->execute();
@@ -374,7 +375,7 @@ class DashboardAdminController {
                             'central_cash' as source_table, NULL as module_name
                          FROM central_cash cc
                          LEFT JOIN users u ON cc.user_id = u.id
-                         WHERE cc.transaction_type = 'plano' AND cc.amount > 0
+                         WHERE cc.transaction_type = 'plano' AND cc.payment_method IN ('pix', 'credit', 'paypal') AND cc.amount > 0
                          ORDER BY cc.created_at DESC LIMIT ?";
                 $stmt = $this->db->prepare($query);
                 $stmt->execute([intval($limit)]);
