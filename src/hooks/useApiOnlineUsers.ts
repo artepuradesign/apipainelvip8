@@ -17,6 +17,8 @@ export interface OnlineUser {
   full_name: string;
   total_consultations: number;
   total_spent: number;
+  total_referrals?: number;
+  remaining_days?: number;
   last_login: string;
   ip_address?: string;
   user_agent?: string;

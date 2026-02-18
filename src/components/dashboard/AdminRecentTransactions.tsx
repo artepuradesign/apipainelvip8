@@ -81,50 +81,72 @@ const AdminRecentTransactions: React.FC<AdminRecentTransactionsProps> = ({ recen
             uniqueTransactions.map((transaction) => (
               <div 
                 key={transaction.id} 
-                className={`flex items-start sm:items-center justify-between p-2 sm:p-3 bg-muted/50 rounded-lg border-l-4 ${getTypeColor(transaction.type)}`}
+                className={`p-2.5 sm:p-3 bg-muted/50 rounded-lg border-l-4 ${getTypeColor(transaction.type)}`}
               >
-                <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
-                  {/* Descrição */}
-                  <p className="text-xs sm:text-sm font-medium text-foreground truncate pr-2">
-                    {transaction.description}
-                  </p>
-                  
-                  {/* Info secundária */}
-                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                    {/* Data/hora */}
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">
-                      {new Date(transaction.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(transaction.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    {/* Descrição */}
+                    <p className="text-xs sm:text-sm font-medium text-foreground pr-2">
+                      {transaction.description}
+                    </p>
                     
-                    {/* Módulo */}
-                    {transaction.module_name && (
-                      <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 py-0 h-3.5 sm:h-4 font-normal">
-                        {transaction.module_name}
-                      </Badge>
-                    )}
-                    
-                    {/* Usuário */}
-                    {transaction.user_name && (
-                      <span className="text-[10px] sm:text-xs text-primary/70 truncate max-w-[80px] sm:max-w-[120px]">
-                        {transaction.user_name}
+                    {/* Info secundária */}
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                      {/* Data/hora */}
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">
+                        {new Date(transaction.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} {new Date(transaction.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                    )}
+                      
+                      {/* Método de pagamento */}
+                      {transaction.payment_method && (
+                        <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1.5 py-0 h-3.5 sm:h-4 font-normal uppercase">
+                          {transaction.payment_method}
+                        </Badge>
+                      )}
+                      
+                      {/* Tipo */}
+                      <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1.5 py-0 h-3.5 sm:h-4 font-normal">
+                        {transaction.type.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                      
+                      {/* Módulo */}
+                      {transaction.module_name && (
+                        <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 py-0 h-3.5 sm:h-4 font-normal">
+                          {transaction.module_name}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {/* Terceira linha: Usuário + Saldo antes/depois */}
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      {transaction.user_name && (
+                        <span className="text-[10px] sm:text-xs text-primary/70 font-medium">
+                          👤 {transaction.user_name}
+                        </span>
+                      )}
+                      
+                      {(transaction.balance_before !== undefined && transaction.balance_after !== undefined) && (
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">
+                          Saldo: {formatCurrency(transaction.balance_before)} → {formatCurrency(transaction.balance_after)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                {/* Valor */}
-                <div className="ml-2 flex-shrink-0">
-                  <Badge 
-                    variant="secondary"
-                    className={`text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 ${
-                      ['recarga', 'entrada', 'plano', 'indicacao', 'comissao'].includes(transaction.type) 
-                        ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
-                        : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
-                    }`}
-                  >
-                    {['recarga', 'entrada', 'plano', 'indicacao', 'comissao'].includes(transaction.type) ? '+' : '-'}
-                    {formatCurrency(transaction.amount)}
-                  </Badge>
+                  
+                  {/* Valor */}
+                  <div className="flex-shrink-0 text-right">
+                    <Badge 
+                      variant="secondary"
+                      className={`text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 ${
+                        ['recarga', 'entrada', 'plano', 'indicacao', 'comissao'].includes(transaction.type) 
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
+                      }`}
+                    >
+                      {['recarga', 'entrada', 'plano', 'indicacao', 'comissao'].includes(transaction.type) ? '+' : '-'}
+                      {formatCurrency(transaction.amount)}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             ))

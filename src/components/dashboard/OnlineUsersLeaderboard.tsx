@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Clock, Mail, DollarSign } from 'lucide-react';
+import { Users, Clock, Mail, DollarSign, Calendar, UserPlus, Wallet } from 'lucide-react';
 import { useApiOnlineUsers } from '@/hooks/useApiOnlineUsers';
 import { useNavigate } from 'react-router-dom';
 
@@ -115,21 +115,44 @@ const OnlineUsersLeaderboard: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* Saldo - Carteira e Plano */}
-                  <div className="flex flex-col gap-1">
+                  {/* Saldo e detalhes extras */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
                     {user.balance !== undefined && (
                       <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3 text-green-600 flex-shrink-0" />
-                        <span className="text-xs font-medium text-green-600">
-                          Carteira: R$ {user.balance.toFixed(2)}
+                        <Wallet className="h-3 w-3 text-green-600 flex-shrink-0" />
+                        <span className="text-[10px] sm:text-xs font-medium text-green-600">
+                          R$ {user.balance.toFixed(2)}
                         </span>
                       </div>
                     )}
                     {user.plan_balance !== undefined && user.plan_balance > 0 && (
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                        <span className="text-xs font-medium text-purple-600">
+                        <span className="text-[10px] sm:text-xs font-medium text-purple-600">
                           Plano: R$ {user.plan_balance.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {(user as any).total_referrals !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <UserPlus className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                        <span className="text-[10px] sm:text-xs font-medium text-orange-500">
+                          {(user as any).total_referrals} indicações
+                        </span>
+                      </div>
+                    )}
+                    {(user as any).remaining_days !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                        <span className="text-[10px] sm:text-xs font-medium text-blue-500">
+                          {(user as any).remaining_days} dias
+                        </span>
+                      </div>
+                    )}
+                    {user.total_consultations !== undefined && user.total_consultations > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">
+                          {user.total_consultations} consultas
                         </span>
                       </div>
                     )}
