@@ -3,36 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DollarSign, RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useApiDashboardAdmin } from '@/hooks/useApiDashboardAdmin';
 import { formatDate } from '@/utils/historicoUtils';
 import DashboardTitleCard from '@/components/dashboard/DashboardTitleCard';
 
 const AdminCaixa = () => {
-  const navigate = useNavigate();
-  const { transactions, loadTransactions, isLoading } = useApiDashboardAdmin();
+  const { transactions, loadTransactions, isLoading, stats } = useApiDashboardAdmin();
   const [displayLimit, setDisplayLimit] = useState(50);
 
   useEffect(() => {
-    loadTransactions(100);
+    loadTransactions(200, 'caixa');
   }, []);
 
-  const filteredTransactions = transactions.filter((transaction) => {
-    const isDuplicate = 
-      transaction.description?.includes('Comissão por indicação - usuario Leonardo Castro') ||
-      transaction.description?.includes('Bônus de indicação por APIPainel') ||
-      (transaction.user_name === 'APIPainel' && transaction.description?.includes('Comissão'));
-
-    const method = (transaction.payment_method || '').toLowerCase().trim();
-    const allowedMethods = ['pix', 'credit', 'cartao', 'card', 'paypal', 'crypto', 'criptomoeda', 'cripto'];
-    const isAllowedMethod = allowedMethods.some((m) => method.includes(m));
-
-    const isCredit = transaction.type === 'credit' || transaction.amount > 0;
-
-    return !isDuplicate && isCredit && isAllowedMethod;
-  });
-
-  const totalCaixa = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalCaixa = transactions.reduce((sum, t) => sum + t.amount, 0);
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', {
@@ -43,15 +26,14 @@ const AdminCaixa = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
       <DashboardTitleCard
         title="Saldo em Caixa"
-        subtitle="Detalhamento completo do caixa central"
+        subtitle="Todas as entradas via PIX, Cartão e PayPal"
         icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />}
         backTo="/dashboard/admin"
         right={
           <Button
-            onClick={() => loadTransactions(100)}
+            onClick={() => loadTransactions(200, 'caixa')}
             disabled={isLoading}
             variant="outline"
             size="sm"
@@ -63,7 +45,6 @@ const AdminCaixa = () => {
         }
       />
 
-      {/* Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
@@ -72,7 +53,7 @@ const AdminCaixa = () => {
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold text-green-600">
-              {formatCurrency(totalCaixa)}
+              {formatCurrency(stats?.cash_balance || totalCaixa)}
             </div>
           </CardContent>
         </Card>
@@ -84,7 +65,7 @@ const AdminCaixa = () => {
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">
-              {filteredTransactions.length}
+              {transactions.length}
             </div>
           </CardContent>
         </Card>
@@ -96,19 +77,18 @@ const AdminCaixa = () => {
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">
-              {formatCurrency(filteredTransactions.length ? totalCaixa / filteredTransactions.length : 0)}
+              {formatCurrency(transactions.length ? totalCaixa / transactions.length : 0)}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Lista de Transações - Mobile First */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base sm:text-lg">Histórico de Transações</CardTitle>
             <Badge variant="secondary" className="text-xs">
-              {filteredTransactions.length} registros
+              {transactions.length} registros
             </Badge>
           </div>
         </CardHeader>
@@ -116,11 +96,11 @@ const AdminCaixa = () => {
           {isLoading ? (
             <div className="text-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Carregando transações...</p>
+              <p className="text-muted-foreground">Carregando transações...</p>
             </div>
-          ) : (
+          ) : transactions.length > 0 ? (
             <div className="space-y-3">
-              {filteredTransactions.slice(0, displayLimit).map((transaction, index) => (
+              {transactions.slice(0, displayLimit).map((transaction, index) => (
                 <div 
                   key={transaction.id || index}
                   className="border rounded-lg p-3 sm:p-4 space-y-2 bg-card"
@@ -129,8 +109,8 @@ const AdminCaixa = () => {
                     <span className="text-xs sm:text-sm text-muted-foreground">
                       {formatDate(transaction.created_at)}
                     </span>
-                    <Badge variant={transaction.type === 'credit' ? 'default' : 'destructive'} className="text-xs">
-                      {transaction.type === 'credit' ? 'Crédito' : 'Débito'}
+                    <Badge variant="default" className="text-xs">
+                      {transaction.payment_method?.toUpperCase() || 'N/A'}
                     </Badge>
                   </div>
                   
@@ -144,28 +124,35 @@ const AdminCaixa = () => {
                       </p>
                     </div>
                     <div className="text-right ml-3">
-                      <p className={`font-bold text-sm sm:text-base ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className="font-bold text-sm sm:text-base text-green-600">
                         {formatCurrency(transaction.amount)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {transaction.payment_method || 'N/A'}
-                      </p>
+                      <Badge variant="outline" className="text-xs">
+                        {transaction.type || 'N/A'}
+                      </Badge>
                     </div>
                   </div>
                 </div>
               ))}
 
-              {filteredTransactions.length > displayLimit && (
+              {transactions.length > displayLimit && (
                 <div className="text-center pt-2">
                   <Button 
                     variant="outline" 
                     onClick={() => setDisplayLimit(prev => prev + 50)}
                     className="w-full sm:w-auto"
                   >
-                    Carregar mais ({filteredTransactions.length - displayLimit} restantes)
+                    Carregar mais ({transactions.length - displayLimit} restantes)
                   </Button>
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                Nenhuma transação registrada
+              </p>
             </div>
           )}
         </CardContent>

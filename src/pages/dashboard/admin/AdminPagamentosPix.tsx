@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { QrCode, TrendingUp, Users, Calendar, Search, Filter, Download } from 'lucide-react';
+import { QrCode, TrendingUp, Users, Calendar, Search, Filter, Download, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApiDashboardAdmin } from '@/hooks/useApiDashboardAdmin';
 import { formatBrazilianCurrency, formatDate } from '@/utils/historicoUtils';
@@ -11,20 +11,16 @@ import DashboardTitleCard from '@/components/dashboard/DashboardTitleCard';
 
 const AdminPagamentosPix = () => {
   const { isSupport } = useAuth();
-  const { stats, transactions, isLoading } = useApiDashboardAdmin();
+  const { stats, transactions, isLoading, loadTransactions } = useApiDashboardAdmin();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  const pixTransactions = useMemo(() => {
-    return transactions.filter(transaction => 
-      transaction.payment_method?.toLowerCase() === 'pix' ||
-      transaction.type?.toLowerCase().includes('pix') ||
-      transaction.description?.toLowerCase().includes('pix')
-    );
-  }, [transactions]);
+  useEffect(() => {
+    loadTransactions(200, 'pix');
+  }, []);
 
   const filteredTransactions = useMemo(() => {
-    return pixTransactions.filter(transaction => {
+    return transactions.filter(transaction => {
       const matchesSearch = searchTerm === '' || 
         transaction.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -35,30 +31,30 @@ const AdminPagamentosPix = () => {
 
       return matchesSearch && matchesDate;
     });
-  }, [pixTransactions, searchTerm, dateFilter]);
+  }, [transactions, searchTerm, dateFilter]);
 
   const pixStats = useMemo(() => {
-    const totalValue = pixTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const todayTransactions = pixTransactions.filter(t => 
+    const totalValue = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+    const todayTransactions = transactions.filter(t => 
       t.created_at && new Date(t.created_at).toDateString() === new Date().toDateString()
     );
-    const uniqueUsers = new Set(pixTransactions.map(t => t.user_name)).size;
+    const uniqueUsers = new Set(transactions.map(t => t.user_name)).size;
 
     return {
-      total: pixTransactions.length,
+      total: transactions.length,
       totalValue,
       todayCount: todayTransactions.length,
       todayValue: todayTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
       uniqueUsers
     };
-  }, [pixTransactions]);
+  }, [transactions]);
 
   if (!isSupport) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Acesso Negado</h2>
-          <p className="text-gray-600 dark:text-gray-400">Você não tem permissão para acessar esta página.</p>
+          <h2 className="text-2xl font-bold">Acesso Negado</h2>
+          <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
         </div>
       </div>
     );
@@ -71,6 +67,18 @@ const AdminPagamentosPix = () => {
         subtitle="Análise detalhada de todas as transações PIX"
         icon={<QrCode className="h-4 w-4 sm:h-5 sm:w-5" />}
         backTo="/dashboard/admin"
+        right={
+          <Button
+            onClick={() => loadTransactions(200, 'pix')}
+            disabled={isLoading}
+            variant="outline"
+            size="sm"
+            className="h-8 sm:h-9"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline ml-2">Atualizar</span>
+          </Button>
+        }
       />
 
       {/* Cards de Resumo */}
@@ -81,7 +89,7 @@ const AdminPagamentosPix = () => {
             <QrCode className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl font-bold">{formatBrazilianCurrency(stats?.payment_pix || 0)}</div>
+            <div className="text-lg sm:text-2xl font-bold">{formatBrazilianCurrency(stats?.payment_pix || pixStats.totalValue)}</div>
             <p className="text-xs text-muted-foreground hidden sm:block">Valor total processado</p>
           </CardContent>
         </Card>
@@ -131,7 +139,7 @@ const AdminPagamentosPix = () => {
         <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex items-center space-x-2 flex-1">
-              <Search className="h-4 w-4 text-gray-400 hidden sm:block" />
+              <Search className="h-4 w-4 text-muted-foreground hidden sm:block" />
               <Input
                 placeholder="Buscar..."
                 value={searchTerm}
@@ -161,20 +169,19 @@ const AdminPagamentosPix = () => {
         </CardContent>
       </Card>
 
-      {/* Lista de Transações - Mobile First */}
+      {/* Lista de Transações */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base sm:text-lg">Transações PIX ({filteredTransactions.length})</CardTitle>
-            <Button variant="outline" size="sm" className="h-8">
-              <Download className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Exportar</span>
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           {isLoading ? (
-            <div className="text-center py-8">Carregando transações...</div>
+            <div className="text-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+              <p className="text-muted-foreground">Carregando transações PIX...</p>
+            </div>
           ) : filteredTransactions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Nenhuma transação PIX encontrada
@@ -208,7 +215,7 @@ const AdminPagamentosPix = () => {
                       </p>
                     </div>
                     <div className="text-right ml-3">
-                      <p className={`font-bold text-sm sm:text-base ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className="font-bold text-sm sm:text-base text-green-600">
                         {formatBrazilianCurrency(transaction.amount)}
                       </p>
                     </div>
