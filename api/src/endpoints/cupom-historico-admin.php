@@ -31,7 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     c.descricao,
                     c.tipo,
                     c.valor as valor_original,
-                    u.email as user_email
+                    u.email as user_email,
+                    u.full_name as user_name,
+                    u.username as user_login,
+                    u.cpf as user_cpf,
+                    u.telefone as user_telefone,
+                    u.saldo as user_saldo,
+                    u.saldo_plano as user_saldo_plano,
+                    u.tipoplano as user_plano,
+                    u.status as user_status,
+                    u.codigo_indicacao as user_codigo_indicacao,
+                    u.created_at as user_created_at
                   FROM cupom_uso cu
                   INNER JOIN cupons c ON cu.cupom_id = c.id
                   LEFT JOIN users u ON cu.user_id = u.id
@@ -49,6 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 'cupom_id' => (int)$cupom['cupom_id'],
                 'user_id' => (int)$cupom['user_id'],
                 'user_email' => $cupom['user_email'],
+                'user_name' => $cupom['user_name'],
+                'user_login' => $cupom['user_login'],
+                'user_cpf' => $cupom['user_cpf'],
+                'user_telefone' => $cupom['user_telefone'],
+                'user_saldo' => $cupom['user_saldo'] !== null ? (float)$cupom['user_saldo'] : null,
+                'user_saldo_plano' => $cupom['user_saldo_plano'] !== null ? (float)$cupom['user_saldo_plano'] : null,
+                'user_plano' => $cupom['user_plano'],
+                'user_status' => $cupom['user_status'],
+                'user_codigo_indicacao' => $cupom['user_codigo_indicacao'],
+                'user_created_at' => $cupom['user_created_at'],
                 'codigo' => $cupom['codigo'],
                 'descricao' => $cupom['descricao'],
                 'tipo' => $cupom['tipo'],
