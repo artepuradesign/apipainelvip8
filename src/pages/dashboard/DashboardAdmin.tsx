@@ -33,12 +33,18 @@ const DashboardAdmin = () => {
   }, [loadStats, loadTransactions]);
 
   // Saldo do caixa = soma de PIX + Cartão + PayPal (campos já calculados corretamente pelo backend)
+  // Total de recargas = somente recargas via PIX/Cartão/PayPal (sem planos, sem cupom, sem consulta)
+  const calculatedRecharges = transactions.filter(t => {
+    const method = (t.payment_method || '').toLowerCase();
+    const isPaymentMethod = ['pix', 'credit', 'paypal', 'cartao', 'card'].some(m => method.includes(m));
+    return t.type === 'recarga' && isPaymentMethod && t.amount > 0;
+  }).reduce((sum, t) => sum + t.amount, 0);
+
   const adjustedStats = stats ? {
     ...stats,
-    cash_balance: (stats.payment_pix || 0) + (stats.payment_card || 0) + (stats.payment_paypal || 0)
+    cash_balance: (stats.payment_pix || 0) + (stats.payment_card || 0) + (stats.payment_paypal || 0),
+    total_recharges: calculatedRecharges
   } : null;
-
-  // Remover monitoramento baseado em notificações para evitar duplicação
 
   // Eventos específicos e limpos para cada operação
   useEffect(() => {
