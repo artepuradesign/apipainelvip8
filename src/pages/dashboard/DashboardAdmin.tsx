@@ -40,10 +40,17 @@ const DashboardAdmin = () => {
     return t.type === 'recarga' && isPaymentMethod && t.amount > 0;
   }).reduce((sum, t) => sum + t.amount, 0);
 
+  // Total de indicações = contar todas as transações de indicação de todos os usuários
+  const referralTransactions = transactions.filter(t => t.type === 'indicacao' && t.amount > 0);
+  const calculatedReferrals = referralTransactions.length;
+  const calculatedCommissions = referralTransactions.reduce((sum, t) => sum + t.amount, 0);
+
   const adjustedStats = stats ? {
     ...stats,
     cash_balance: (stats.payment_pix || 0) + (stats.payment_card || 0) + (stats.payment_paypal || 0),
-    total_recharges: calculatedRecharges
+    total_recharges: calculatedRecharges,
+    total_referrals: calculatedReferrals || stats.total_referrals,
+    total_commissions: calculatedCommissions || stats.total_commissions
   } : null;
 
   // Eventos específicos e limpos para cada operação
