@@ -140,24 +140,41 @@ const AdminCaixa = () => {
                       <p className="font-semibold text-sm sm:text-base">
                         {transaction.user_name || 'Usuário não identificado'}
                       </p>
-                      {tx.user_email && (
-                        <p className="text-xs text-muted-foreground">📧 {tx.user_email}</p>
-                      )}
-                      {tx.user_login && (
-                        <p className="text-xs text-muted-foreground">👤 @{tx.user_login}</p>
-                      )}
-                      {tx.user_cpf && (
-                        <p className="text-xs text-muted-foreground">🪪 CPF: {tx.user_cpf}</p>
-                      )}
-                      {tx.user_telefone && (
-                        <p className="text-xs text-muted-foreground">📱 Tel: {tx.user_telefone}</p>
-                      )}
-                      {tx.user_id && (
-                        <p className="text-xs text-muted-foreground">🔑 ID: {tx.user_id}</p>
-                      )}
-                      {tx.user_status && (
-                        <p className="text-xs text-muted-foreground">📌 Status: {tx.user_status}</p>
-                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
+                        {tx.user_email && (
+                          <p className="text-xs text-muted-foreground">📧 {tx.user_email}</p>
+                        )}
+                        {tx.user_login && (
+                          <p className="text-xs text-muted-foreground">👤 @{tx.user_login}</p>
+                        )}
+                        {tx.user_cpf && (
+                          <p className="text-xs text-muted-foreground">🪪 CPF: {tx.user_cpf}</p>
+                        )}
+                        {tx.user_telefone && (
+                          <p className="text-xs text-muted-foreground">📱 Tel: {tx.user_telefone}</p>
+                        )}
+                        {tx.user_id && (
+                          <p className="text-xs text-muted-foreground">🔑 ID: {tx.user_id}</p>
+                        )}
+                        {tx.user_status && (
+                          <p className="text-xs text-muted-foreground">📌 Status: <span className="font-medium">{tx.user_status}</span></p>
+                        )}
+                        {tx.user_plano && (
+                          <p className="text-xs text-muted-foreground">📋 Plano: <span className="font-medium">{tx.user_plano}</span></p>
+                        )}
+                        {tx.user_codigo_indicacao && (
+                          <p className="text-xs text-muted-foreground">🎫 Cód. Indicação: <span className="font-mono">{tx.user_codigo_indicacao}</span></p>
+                        )}
+                        {tx.user_saldo !== undefined && tx.user_saldo !== null && (
+                          <p className="text-xs text-muted-foreground">💰 Saldo Carteira: <span className="font-mono font-semibold">{formatCurrency(tx.user_saldo)}</span></p>
+                        )}
+                        {tx.user_saldo_plano !== undefined && tx.user_saldo_plano !== null && (
+                          <p className="text-xs text-muted-foreground">💎 Saldo Plano: <span className="font-mono font-semibold">{formatCurrency(tx.user_saldo_plano)}</span></p>
+                        )}
+                        {tx.user_created_at && (
+                          <p className="text-xs text-muted-foreground">📅 Cadastro: {formatDate(tx.user_created_at)}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right ml-3 flex-shrink-0">
                       <p className="font-bold text-lg sm:text-xl text-green-600">
@@ -166,14 +183,14 @@ const AdminCaixa = () => {
                     </div>
                   </div>
 
-                  {/* Linha 3: Detalhes completos */}
+                  {/* Linha 3: Detalhes da Transação */}
                   <div className="pt-2 border-t border-border/50 space-y-1">
                     <p className="text-xs sm:text-sm text-muted-foreground">
                       {transaction.description}
                     </p>
                     
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
-                      {/* Saldo da CARTEIRA do usuário (não do caixa central) */}
+                      {/* Saldo da CARTEIRA do usuário antes/depois da transação */}
                       {tx.user_balance_before !== undefined && tx.user_balance_before !== null && (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">
                           👛 Carteira Antes: <span className="font-mono">{formatCurrency(tx.user_balance_before)}</span>
@@ -182,23 +199,6 @@ const AdminCaixa = () => {
                       {tx.user_balance_after !== undefined && tx.user_balance_after !== null && (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">
                           👛 Carteira Depois: <span className="font-mono">{formatCurrency(tx.user_balance_after)}</span>
-                        </p>
-                      )}
-                      {/* Saldo atual do usuário */}
-                      {tx.user_balance !== undefined && tx.user_balance !== null && (
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          💰 Saldo Atual: <span className="font-mono font-semibold">{formatCurrency(tx.user_balance)}</span>
-                        </p>
-                      )}
-                      {/* Saldo do caixa central */}
-                      {tx.cash_balance_before !== undefined && tx.cash_balance_before !== null && (
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          🏦 Caixa Antes: <span className="font-mono">{formatCurrency(tx.cash_balance_before)}</span>
-                        </p>
-                      )}
-                      {tx.cash_balance_after !== undefined && tx.cash_balance_after !== null && (
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          🏦 Caixa Depois: <span className="font-mono">{formatCurrency(tx.cash_balance_after)}</span>
                         </p>
                       )}
                       {tx.external_id && (
