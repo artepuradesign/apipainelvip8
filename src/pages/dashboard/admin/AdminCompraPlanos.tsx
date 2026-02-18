@@ -15,7 +15,12 @@ const AdminCompraPlanos = () => {
     loadTransactions(200, 'planos');
   }, []);
 
-  const totalPlanos = transactions.reduce((sum, t) => sum + t.amount, 0);
+  // Só somar PIX, Cartão e PayPal - excluir cupom
+  const paidTransactions = transactions.filter(t => {
+    const method = (t.payment_method || '').toLowerCase();
+    return ['pix', 'credit', 'paypal', 'cartao', 'card'].some(m => method.includes(m));
+  });
+  const totalPlanos = paidTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
