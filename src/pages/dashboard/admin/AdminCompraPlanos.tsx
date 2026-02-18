@@ -86,20 +86,36 @@ const AdminCompraPlanos = () => {
           ) : transactions.length > 0 ? (
             <div className="space-y-3">
               {transactions.slice(0, displayLimit).map((transaction, index) => (
-                <div key={transaction.id || index} className="border rounded-lg p-3 sm:p-4 space-y-2 bg-card border-l-4 border-l-purple-500">
+                <div key={transaction.id || index} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card border-l-4 border-l-purple-500">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm text-muted-foreground">{formatDate(transaction.created_at)}</span>
-                    <Badge variant="default" className="text-xs">Concluído</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs font-mono">#{transaction.id || index}</Badge>
+                      <span className="text-xs sm:text-sm text-muted-foreground">{formatDate(transaction.created_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="text-xs">{transaction.payment_method?.toUpperCase() || 'N/A'}</Badge>
+                      <Badge variant="outline" className="text-xs">{transaction.type || 'plano'}</Badge>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">{transaction.user_name || 'N/A'}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground truncate">{transaction.description}</p>
+                      <p className="font-semibold text-sm sm:text-base">{transaction.user_name || 'Usuário não identificado'}</p>
+                      {(transaction as any).user_email && (
+                        <p className="text-xs text-muted-foreground">📧 {(transaction as any).user_email}</p>
+                      )}
+                      {(transaction as any).user_login && (
+                        <p className="text-xs text-muted-foreground">👤 @{(transaction as any).user_login}</p>
+                      )}
                     </div>
                     <div className="text-right ml-3">
-                      <p className="font-bold text-sm sm:text-base text-purple-600">{formatCurrency(transaction.amount)}</p>
-                      <Badge variant="outline" className="text-xs">{transaction.payment_method || 'N/A'}</Badge>
+                      <p className="font-bold text-lg sm:text-xl text-purple-600">{formatCurrency(transaction.amount)}</p>
                     </div>
+                  </div>
+                  <div className="pt-2 border-t border-border/50 space-y-1">
+                    <p className="text-xs sm:text-sm text-muted-foreground">{transaction.description}</p>
+                    {(transaction as any).external_id && (
+                      <p className="text-[10px] sm:text-xs text-muted-foreground font-mono">ID Externo: {(transaction as any).external_id}</p>
+                    )}
                   </div>
                 </div>
               ))}
