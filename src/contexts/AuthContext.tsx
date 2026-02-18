@@ -223,6 +223,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         const { user: apiUser, token, session_token } = apiResult.data;
         
+        // Verificar se o usuário está suspenso
+        if (apiUser.status === 'suspenso' || apiUser.status === 'suspended') {
+          console.warn('⛔ [AUTH] Usuário suspenso, bloqueando login');
+          return {
+            success: false,
+            message: '__SUSPENDED__'
+          };
+        }
+        
         // Salvar token com duração de 30 minutos (0.0208 dias)
         const finalSessionToken = session_token || token;
         cookieUtils.set('session_token', finalSessionToken, 0.0208);
