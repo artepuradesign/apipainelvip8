@@ -16,10 +16,11 @@ class DashboardAdminController {
         try {
             error_log("DASHBOARD_ADMIN: Buscando estatísticas do dashboard");
             
-            // Saldo em Caixa - soma todas as entradas (recargas + compras de planos), independente do método de pagamento
+            // Saldo em Caixa - soma TODAS as entradas via PIX, Cartão e PayPal (independente de ser plano ou recarga)
             $cashQuery = "SELECT COALESCE(SUM(amount), 0) as total_cash 
                          FROM central_cash 
-                         WHERE transaction_type IN ('entrada', 'recarga', 'plano')";
+                         WHERE payment_method IN ('pix', 'credit', 'paypal')
+                         AND amount > 0";
             $cashStmt = $this->db->prepare($cashQuery);
             $cashStmt->execute();
             $cashResult = $cashStmt->fetch(PDO::FETCH_ASSOC);
@@ -27,39 +28,11 @@ class DashboardAdminController {
             // Planos Comprados - soma o valor total dos planos comprados  
             $plansQuery = "SELECT COALESCE(SUM(CAST(amount AS DECIMAL(10,2))), 0) as plan_sales 
                           FROM central_cash 
-                          WHERE transaction_type = 'plano'";
+                          WHERE transaction_type = 'plano'
+                          AND amount > 0";
             $plansStmt = $this->db->prepare($plansQuery);
             $plansStmt->execute();
             $plansResult = $plansStmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Debug: Log valores dos planos - MAIS DETALHADO
-            error_log("DEBUG PLANOS: Query executada: " . $plansQuery);
-            error_log("DEBUG PLANOS: Resultado da query: " . json_encode($plansResult));
-            error_log("DEBUG PLANOS: Total de planos vendidos = " . $plansResult['plan_sales']);
-            error_log("DEBUG PLANOS: Tipo do valor: " . gettype($plansResult['plan_sales']));
-            
-            // Debug: Verificar se existem registros na tabela central_cash
-            $debugAllQuery = "SELECT * FROM central_cash WHERE transaction_type = 'plano' LIMIT 5";
-            $debugAllStmt = $this->db->prepare($debugAllQuery);
-            $debugAllStmt->execute();
-            $debugAllResults = $debugAllStmt->fetchAll(PDO::FETCH_ASSOC);
-            error_log("DEBUG PLANOS: Primeiros 5 registros de planos: " . json_encode($debugAllResults));
-            
-            // Debug: Contar registros na tabela central_cash com transaction_type = 'plano'
-            $debugPlansQuery = "SELECT COUNT(*) as count, COALESCE(SUM(CAST(amount AS DECIMAL(10,2))), 0) as total 
-                               FROM central_cash 
-                               WHERE transaction_type = 'plano'";
-            $debugPlansStmt = $this->db->prepare($debugPlansQuery);
-            $debugPlansStmt->execute();
-            $debugPlansResult = $debugPlansStmt->fetch(PDO::FETCH_ASSOC);
-            error_log("DEBUG PLANOS: {$debugPlansResult['count']} registros encontrados, total: {$debugPlansResult['total']}");
-            
-            // Debug: Verificar a estrutura da tabela central_cash
-            $debugStructureQuery = "SHOW COLUMNS FROM central_cash";
-            $debugStructureStmt = $this->db->prepare($debugStructureQuery);
-            $debugStructureStmt->execute();
-            $debugStructureResults = $debugStructureStmt->fetchAll(PDO::FETCH_ASSOC);
-            error_log("DEBUG PLANOS: Estrutura da tabela central_cash: " . json_encode($debugStructureResults));
 
             // Total de Usuários
             $usersQuery = "SELECT COUNT(*) as total_users FROM users WHERE status = 'ativo'";
@@ -67,9 +40,9 @@ class DashboardAdminController {
             $usersStmt->execute();
             $usersResult = $usersStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Indicações - quantidade única (cada indicação real gera 2 registros) e valor total
+            // Indicações - contar TODAS as indicações e somar o valor total pago
             $commissionsQuery = "SELECT 
-                                   FLOOR(COALESCE(COUNT(*), 0) / 2) as total_referrals,
+                                   COUNT(*) as total_referrals,
                                    COALESCE(SUM(amount), 0) as total_commissions_value
                                 FROM wallet_transactions 
                                 WHERE type = 'indicacao' 
@@ -86,16 +59,15 @@ class DashboardAdminController {
             $modulesStmt->execute();
             $modulesResult = $modulesStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Total em Recargas - apenas recargas válidas com método de pagamento
+            // Total em Recargas - APENAS recargas de saldo via PIX/Cartão/PayPal (SEM compra de planos, SEM cupom)
             $rechargesQuery = "SELECT COALESCE(SUM(amount), 0) as total_recharges 
                               FROM central_cash 
                               WHERE transaction_type = 'recarga' 
-                              AND payment_method IS NOT NULL 
-                              AND payment_method != ''";
+                              AND payment_method IN ('pix', 'credit', 'paypal')
+                              AND amount > 0";
             $rechargesStmt = $this->db->prepare($rechargesQuery);
             $rechargesStmt->execute();
             $rechargesResult = $rechargesStmt->fetch(PDO::FETCH_ASSOC);
-
 
             // Total de Saques
             $withdrawalsQuery = "SELECT COALESCE(SUM(amount), 0) as total_withdrawals 
@@ -118,29 +90,29 @@ class DashboardAdminController {
             $onlineUsersStmt->execute();
             $onlineUsersResult = $onlineUsersStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Pagamentos PIX - apenas entradas
+            // Pagamentos PIX - apenas entradas com valor positivo
             $pixQuery = "SELECT COALESCE(SUM(amount), 0) as total_pix 
                         FROM central_cash 
                         WHERE payment_method = 'pix' 
-                        AND transaction_type IN ('entrada', 'recarga', 'plano')";
+                        AND amount > 0";
             $pixStmt = $this->db->prepare($pixQuery);
             $pixStmt->execute();
             $pixResult = $pixStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Pagamentos Cartão de Crédito - apenas entradas
+            // Pagamentos Cartão de Crédito - apenas entradas com valor positivo
             $cardQuery = "SELECT COALESCE(SUM(amount), 0) as total_card 
                          FROM central_cash 
                          WHERE payment_method = 'credit' 
-                         AND transaction_type IN ('entrada', 'recarga', 'plano')";
+                         AND amount > 0";
             $cardStmt = $this->db->prepare($cardQuery);
             $cardStmt->execute();
             $cardResult = $cardStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Pagamentos PayPal - apenas entradas
+            // Pagamentos PayPal - apenas entradas com valor positivo
             $paypalQuery = "SELECT COALESCE(SUM(amount), 0) as total_paypal 
                            FROM central_cash 
                            WHERE payment_method = 'paypal' 
-                           AND transaction_type IN ('entrada', 'recarga', 'plano')";
+                           AND amount > 0";
             $paypalStmt = $this->db->prepare($paypalQuery);
             $paypalStmt->execute();
             $paypalResult = $paypalStmt->fetch(PDO::FETCH_ASSOC);
@@ -153,17 +125,16 @@ class DashboardAdminController {
                 $couponsStmt->execute();
                 $couponsResult = $couponsStmt->fetch(PDO::FETCH_ASSOC);
             } catch (Exception $e) {
-                // Tabela cupom_uso não existe ainda - retornar 0
                 error_log("DASHBOARD_ADMIN: Tabela cupom_uso não encontrada - " . $e->getMessage());
                 $couponsResult = ['total_coupons_used' => 0];
             }
 
-            // Painéis Ativos - obter da API externa (se configurada)
+            // Painéis Ativos
             $activePanels = $this->getActivePanelsFromExternalAPI();
 
             $stats = [
                 'cash_balance' => floatval($cashResult['total_cash']) ?: 0,
-                'active_plans' => $activePanels ?: 0, // Usar valor da API externa
+                'active_plans' => $activePanels ?: 0,
                 'total_users' => intval($usersResult['total_users']) ?: 0,
                 'total_referrals' => intval($commissionsResult['total_referrals']) ?: 0,
                 'total_commissions' => floatval($commissionsResult['total_commissions_value']) ?: 0,
@@ -173,7 +144,6 @@ class DashboardAdminController {
                 'total_withdrawals' => floatval($withdrawalsResult['total_withdrawals']) ?: 0,
                 'total_consultations' => intval($consultationsResult['total_consultations']) ?: 0,
                 'users_online' => intval($onlineUsersResult['users_online']) ?: 0,
-                // Novos campos para métodos de pagamento específicos
                 'payment_pix' => floatval($pixResult['total_pix']) ?: 0,
                 'payment_card' => floatval($cardResult['total_card']) ?: 0,
                 'payment_paypal' => floatval($paypalResult['total_paypal']) ?: 0,
@@ -454,16 +424,20 @@ class DashboardAdminController {
             error_log("DASHBOARD_ADMIN: Buscando usuários online detalhados");
             
             // Buscar usuários com sessões ativas nos últimos 5 minutos
+            // Inclui saldo_plano, data_fim para dias restantes, e total de indicações
             $query = "SELECT DISTINCT u.id, u.username, u.email, u.full_name, u.cpf, u.telefone, 
-                             u.tipoplano as plan, u.saldo as balance, u.status, u.user_role,
+                             u.tipoplano as plan, u.saldo as balance, u.saldo_plano as plan_balance,
+                             u.status, u.user_role, u.data_fim,
                              us.last_activity as last_login,
                              us.ip_address, us.user_agent,
                              COUNT(DISTINCT c.id) as total_consultations,
-                             COALESCE(SUM(wt.amount), 0) as total_spent
+                             COALESCE(SUM(CASE WHEN wt.type = 'saida' THEN wt.amount ELSE 0 END), 0) as total_spent,
+                             (SELECT COUNT(*) FROM wallet_transactions wt2 
+                              WHERE wt2.user_id = u.id AND wt2.type = 'indicacao' AND wt2.amount > 0) as total_referrals
                       FROM users u
                       INNER JOIN user_sessions us ON u.id = us.user_id
                       LEFT JOIN consultations c ON u.id = c.user_id
-                      LEFT JOIN wallet_transactions wt ON u.id = wt.user_id AND wt.type = 'saida'
+                      LEFT JOIN wallet_transactions wt ON u.id = wt.user_id
                       WHERE us.last_activity > DATE_SUB(NOW(), INTERVAL 5 MINUTE) 
                       AND us.status = 'ativa'
                       GROUP BY u.id, us.last_activity, us.ip_address, us.user_agent
@@ -483,11 +457,14 @@ class DashboardAdminController {
                     'telefone' => $row['telefone'],
                     'plan' => $row['plan'],
                     'balance' => floatval($row['balance']),
+                    'plan_balance' => floatval($row['plan_balance'] ?? 0),
                     'status' => $row['status'],
                     'user_role' => $row['user_role'],
                     'full_name' => $row['full_name'],
                     'total_consultations' => intval($row['total_consultations']),
                     'total_spent' => floatval($row['total_spent']),
+                    'total_referrals' => intval($row['total_referrals'] ?? 0),
+                    'remaining_days' => $row['data_fim'] ? max(0, (int)((strtotime($row['data_fim']) - time()) / 86400)) : 0,
                     'last_login' => $row['last_login'],
                     'ip_address' => $row['ip_address'],
                     'user_agent' => $row['user_agent'],
