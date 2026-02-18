@@ -32,22 +32,8 @@ const DashboardAdmin = () => {
     loadData();
   }, [loadStats, loadTransactions]);
 
-  // Calcular saldo em caixa apenas com pagamentos PIX, Cartão e Criptomoeda
-  const filteredCashTransactions = transactions.filter((transaction) => {
-    const method = (transaction.payment_method || '').toLowerCase().trim();
-    const allowedMethods = ['pix', 'credit', 'cartao', 'card', 'paypal'];
-    const isAllowedMethod = allowedMethods.some((m) => method.includes(m));
-    const isCredit = transaction.type === 'credit' || transaction.amount > 0;
-    return isCredit && isAllowedMethod;
-  });
-
-  const calculatedCashBalance = filteredCashTransactions.reduce((sum, t) => sum + t.amount, 0);
-
-  // Substituir o cash_balance nos stats com o valor calculado
-  const adjustedStats = stats ? {
-    ...stats,
-    cash_balance: calculatedCashBalance
-  } : null;
+  // Usar o cash_balance direto da API (calculado no backend como soma de PIX + Cartão + PayPal)
+  const adjustedStats = stats;
 
   // Remover monitoramento baseado em notificações para evitar duplicação
 
