@@ -475,19 +475,54 @@ class DashboardAdminController {
             
             $transactions = [];
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $transactions[] = [
+                $transaction = [
                     'id' => $row['id'],
-                    'type' => $row['type'],
-                    'description' => $row['description'],
-                    'amount' => floatval($row['amount']),
-                    'balance_before' => floatval($row['balance_before']),
-                    'balance_after' => floatval($row['balance_after']),
-                    'user_name' => $row['user_name'],
-                    'payment_method' => $row['payment_method'],
-                    'created_at' => $row['created_at'],
-                    'source' => $row['source_table'],
-                    'module_name' => $row['module_name']
+                    'type' => $row['type'] ?? null,
+                    'description' => $row['description'] ?? null,
+                    'amount' => floatval($row['amount'] ?? 0),
+                    'user_name' => $row['user_name'] ?? null,
+                    'payment_method' => $row['payment_method'] ?? null,
+                    'created_at' => $row['created_at'] ?? null,
+                    'source' => $row['source_table'] ?? null,
+                    'module_name' => $row['module_name'] ?? null,
                 ];
+
+                // Campos extras do usuário (quando disponíveis via JOIN)
+                if (isset($row['user_email'])) $transaction['user_email'] = $row['user_email'];
+                if (isset($row['user_login'])) $transaction['user_login'] = $row['user_login'];
+                if (isset($row['user_id'])) $transaction['user_id'] = $row['user_id'];
+                if (isset($row['user_cpf'])) $transaction['user_cpf'] = $row['user_cpf'];
+                if (isset($row['user_telefone'])) $transaction['user_telefone'] = $row['user_telefone'];
+                if (isset($row['user_saldo'])) $transaction['user_saldo'] = floatval($row['user_saldo']);
+                if (isset($row['user_saldo_plano'])) $transaction['user_saldo_plano'] = floatval($row['user_saldo_plano']);
+                if (isset($row['user_plano'])) $transaction['user_plano'] = $row['user_plano'];
+                if (isset($row['user_status'])) $transaction['user_status'] = $row['user_status'];
+                if (isset($row['user_codigo_indicacao'])) $transaction['user_codigo_indicacao'] = $row['user_codigo_indicacao'];
+                if (isset($row['user_created_at'])) $transaction['user_created_at'] = $row['user_created_at'];
+
+                // Saldos da carteira do usuário (via wallet_transactions)
+                if (isset($row['user_balance_before'])) $transaction['user_balance_before'] = floatval($row['user_balance_before']);
+                if (isset($row['user_balance_after'])) $transaction['user_balance_after'] = floatval($row['user_balance_after']);
+
+                // Saldos do caixa central
+                if (isset($row['cash_balance_before'])) $transaction['cash_balance_before'] = floatval($row['cash_balance_before']);
+                if (isset($row['cash_balance_after'])) $transaction['cash_balance_after'] = floatval($row['cash_balance_after']);
+                // Fallback para queries que usam balance_before/after diretamente
+                if (!isset($transaction['cash_balance_before']) && isset($row['balance_before'])) {
+                    $transaction['balance_before'] = floatval($row['balance_before']);
+                }
+                if (!isset($transaction['cash_balance_after']) && isset($row['balance_after'])) {
+                    $transaction['balance_after'] = floatval($row['balance_after']);
+                }
+
+                // Campos extras da transação
+                if (isset($row['external_id'])) $transaction['external_id'] = $row['external_id'];
+                if (isset($row['reference_table'])) $transaction['reference_table'] = $row['reference_table'];
+                if (isset($row['reference_id'])) $transaction['reference_id'] = $row['reference_id'];
+                if (isset($row['created_by'])) $transaction['created_by'] = $row['created_by'];
+                if (isset($row['metadata'])) $transaction['metadata'] = $row['metadata'];
+
+                $transactions[] = $transaction;
             }
             
             error_log("DASHBOARD_ADMIN: " . count($transactions) . " transações carregadas (filtro: $filter)");
