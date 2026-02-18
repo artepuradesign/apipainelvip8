@@ -32,8 +32,11 @@ const DashboardAdmin = () => {
     loadData();
   }, [loadStats, loadTransactions]);
 
-  // Usar o cash_balance direto da API (calculado no backend como soma de PIX + Cartão + PayPal)
-  const adjustedStats = stats;
+  // Saldo do caixa = soma de PIX + Cartão + PayPal (campos já calculados corretamente pelo backend)
+  const adjustedStats = stats ? {
+    ...stats,
+    cash_balance: (stats.payment_pix || 0) + (stats.payment_card || 0) + (stats.payment_paypal || 0)
+  } : null;
 
   // Remover monitoramento baseado em notificações para evitar duplicação
 
