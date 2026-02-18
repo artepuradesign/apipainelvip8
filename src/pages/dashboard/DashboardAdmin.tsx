@@ -48,7 +48,7 @@ const DashboardAdmin = () => {
   const adjustedStats = stats ? {
     ...stats,
     cash_balance: (stats.payment_pix || 0) + (stats.payment_card || 0) + (stats.payment_paypal || 0),
-    total_recharges: calculatedRecharges,
+    total_recharges: calculatedRecharges || stats.total_recharges,
     total_referrals: calculatedReferrals || stats.total_referrals,
     total_commissions: calculatedCommissions || stats.total_commissions
   } : null;
