@@ -307,76 +307,155 @@ class DashboardAdminController {
             error_log("DASHBOARD_ADMIN: Buscando transações do caixa central, bônus de indicação e consultas");
             
             $limit = $_GET['limit'] ?? 50;
+            $filter = $_GET['filter'] ?? 'all';
             
-            // Query principal incluindo transações do caixa central, indicações E consultas
-            $query = "
-                (
-                    SELECT 
-                        cc.id,
-                        cc.transaction_type as type,
-                        cc.description,
-                        cc.amount,
-                        cc.balance_before,
-                        cc.balance_after,
-                        u.full_name as user_name,
-                        cc.payment_method,
-                        cc.created_at,
-                        'central_cash' as source_table,
-                        NULL as module_name
-                    FROM central_cash cc
-                    LEFT JOIN users u ON cc.user_id = u.id
-                )
-                UNION ALL
-                (
-                    SELECT 
-                        CONCAT('wt_', wt.id) as id,
-                        wt.type,
-                        CASE 
-                            WHEN wt.type = 'indicacao' THEN CONCAT('Bônus de Indicação - ', wt.description)
-                            ELSE wt.description
-                        END as description,
-                        wt.amount,
-                        wt.balance_before,
-                        wt.balance_after,
-                        u.full_name as user_name,
-                        COALESCE(wt.payment_method, 'Sistema') as payment_method,
-                        wt.created_at,
-                        'wallet_transactions' as source_table,
-                        NULL as module_name
-                    FROM wallet_transactions wt
-                    LEFT JOIN users u ON wt.user_id = u.id
-                    WHERE wt.type = 'indicacao'
-                )
-                UNION ALL
-                (
-                    SELECT 
-                        CONCAT('cons_', c.id) as id,
-                        'consulta' as type,
-                        CONCAT('Consulta: ', c.document) as description,
-                        c.cost as amount,
-                        0 as balance_before,
-                        0 as balance_after,
-                        u.full_name as user_name,
-                        'saldo' as payment_method,
-                        c.created_at,
-                        'consultations' as source_table,
-                        COALESCE(
-                            JSON_UNQUOTE(JSON_EXTRACT(c.metadata, '$.module_title')),
+            error_log("DASHBOARD_ADMIN: Filtro aplicado: " . $filter);
+            
+            // Se filtro específico, buscar direto da tabela correta
+            if ($filter === 'pix') {
+                $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
+                            cc.balance_before, cc.balance_after, u.full_name as user_name,
+                            cc.payment_method, cc.created_at, 'central_cash' as source_table, NULL as module_name
+                         FROM central_cash cc
+                         LEFT JOIN users u ON cc.user_id = u.id
+                         WHERE cc.payment_method = 'pix' AND cc.amount > 0
+                         ORDER BY cc.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } elseif ($filter === 'card') {
+                $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
+                            cc.balance_before, cc.balance_after, u.full_name as user_name,
+                            cc.payment_method, cc.created_at, 'central_cash' as source_table, NULL as module_name
+                         FROM central_cash cc
+                         LEFT JOIN users u ON cc.user_id = u.id
+                         WHERE cc.payment_method = 'credit' AND cc.amount > 0
+                         ORDER BY cc.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } elseif ($filter === 'paypal') {
+                $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
+                            cc.balance_before, cc.balance_after, u.full_name as user_name,
+                            cc.payment_method, cc.created_at, 'central_cash' as source_table, NULL as module_name
+                         FROM central_cash cc
+                         LEFT JOIN users u ON cc.user_id = u.id
+                         WHERE cc.payment_method = 'paypal' AND cc.amount > 0
+                         ORDER BY cc.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } elseif ($filter === 'caixa') {
+                $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
+                            cc.balance_before, cc.balance_after, u.full_name as user_name,
+                            cc.payment_method, cc.created_at, 'central_cash' as source_table, NULL as module_name
+                         FROM central_cash cc
+                         LEFT JOIN users u ON cc.user_id = u.id
+                         WHERE cc.payment_method IN ('pix', 'credit', 'paypal') AND cc.amount > 0
+                         ORDER BY cc.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } elseif ($filter === 'recargas') {
+                $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
+                            cc.balance_before, cc.balance_after, u.full_name as user_name,
+                            cc.payment_method, cc.created_at, 'central_cash' as source_table, NULL as module_name
+                         FROM central_cash cc
+                         LEFT JOIN users u ON cc.user_id = u.id
+                         WHERE cc.transaction_type = 'recarga' AND cc.payment_method IN ('pix', 'credit', 'paypal') AND cc.amount > 0
+                         ORDER BY cc.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } elseif ($filter === 'planos') {
+                $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
+                            cc.balance_before, cc.balance_after, u.full_name as user_name,
+                            cc.payment_method, cc.created_at, 'central_cash' as source_table, NULL as module_name
+                         FROM central_cash cc
+                         LEFT JOIN users u ON cc.user_id = u.id
+                         WHERE cc.transaction_type = 'plano' AND cc.amount > 0
+                         ORDER BY cc.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } elseif ($filter === 'indicacoes') {
+                $query = "SELECT CONCAT('wt_', wt.id) as id, wt.type, 
+                            CONCAT('Bônus de Indicação - ', wt.description) as description,
+                            wt.amount, wt.balance_before, wt.balance_after,
+                            u.full_name as user_name,
+                            COALESCE(wt.payment_method, 'Sistema') as payment_method,
+                            wt.created_at, 'wallet_transactions' as source_table, NULL as module_name
+                         FROM wallet_transactions wt
+                         LEFT JOIN users u ON wt.user_id = u.id
+                         WHERE wt.type = 'indicacao' AND wt.amount > 0
+                         ORDER BY wt.created_at DESC LIMIT ?";
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            } else {
+                // Query original - todas as transações
+                $query = "
+                    (
+                        SELECT 
+                            cc.id,
+                            cc.transaction_type as type,
+                            cc.description,
+                            cc.amount,
+                            cc.balance_before,
+                            cc.balance_after,
+                            u.full_name as user_name,
+                            cc.payment_method,
+                            cc.created_at,
+                            'central_cash' as source_table,
+                            NULL as module_name
+                        FROM central_cash cc
+                        LEFT JOIN users u ON cc.user_id = u.id
+                    )
+                    UNION ALL
+                    (
+                        SELECT 
+                            CONCAT('wt_', wt.id) as id,
+                            wt.type,
                             CASE 
-                                WHEN c.module_type = 'nome' THEN 'NOME COMPLETO'
-                                WHEN c.module_type = 'cpf' THEN 'CPF'
-                                ELSE UPPER(COALESCE(c.module_type, 'CONSULTA'))
-                            END
-                        ) as module_name
-                    FROM consultations c
-                    LEFT JOIN users u ON c.user_id = u.id
-                    WHERE c.status = 'completed' AND c.cost > 0
-                )
-                ORDER BY created_at DESC
-                LIMIT ?";
-            
-            $stmt = $this->db->prepare($query);
-            $stmt->execute([intval($limit)]);
+                                WHEN wt.type = 'indicacao' THEN CONCAT('Bônus de Indicação - ', wt.description)
+                                ELSE wt.description
+                            END as description,
+                            wt.amount,
+                            wt.balance_before,
+                            wt.balance_after,
+                            u.full_name as user_name,
+                            COALESCE(wt.payment_method, 'Sistema') as payment_method,
+                            wt.created_at,
+                            'wallet_transactions' as source_table,
+                            NULL as module_name
+                        FROM wallet_transactions wt
+                        LEFT JOIN users u ON wt.user_id = u.id
+                        WHERE wt.type = 'indicacao'
+                    )
+                    UNION ALL
+                    (
+                        SELECT 
+                            CONCAT('cons_', c.id) as id,
+                            'consulta' as type,
+                            CONCAT('Consulta: ', c.document) as description,
+                            c.cost as amount,
+                            0 as balance_before,
+                            0 as balance_after,
+                            u.full_name as user_name,
+                            'saldo' as payment_method,
+                            c.created_at,
+                            'consultations' as source_table,
+                            COALESCE(
+                                JSON_UNQUOTE(JSON_EXTRACT(c.metadata, '$.module_title')),
+                                CASE 
+                                    WHEN c.module_type = 'nome' THEN 'NOME COMPLETO'
+                                    WHEN c.module_type = 'cpf' THEN 'CPF'
+                                    ELSE UPPER(COALESCE(c.module_type, 'CONSULTA'))
+                                END
+                            ) as module_name
+                        FROM consultations c
+                        LEFT JOIN users u ON c.user_id = u.id
+                        WHERE c.status = 'completed' AND c.cost > 0
+                    )
+                    ORDER BY created_at DESC
+                    LIMIT ?";
+                
+                $stmt = $this->db->prepare($query);
+                $stmt->execute([intval($limit)]);
+            }
             
             $transactions = [];
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -395,7 +474,7 @@ class DashboardAdminController {
                 ];
             }
             
-            error_log("DASHBOARD_ADMIN: " . count($transactions) . " transações carregadas (incluindo consultas e bônus)");
+            error_log("DASHBOARD_ADMIN: " . count($transactions) . " transações carregadas (filtro: $filter)");
             Response::success(['transactions' => $transactions], 'Transações carregadas com sucesso');
             
         } catch (Exception $e) {

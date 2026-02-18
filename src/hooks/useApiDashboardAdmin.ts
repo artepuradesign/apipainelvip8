@@ -234,7 +234,7 @@ export const useApiDashboardAdmin = () => {
     }
   }, []);
 
-  const loadTransactions = useCallback(async (limit = 50) => {
+  const loadTransactions = useCallback(async (limit = 50, filter = 'all') => {
     setIsLoading(true);
     try {
       await fetchApiConfig();
@@ -243,7 +243,7 @@ export const useApiDashboardAdmin = () => {
         throw new Error('Token de autenticação não encontrado');
       }
 
-      const data = await apiRequest<any>(`/dashboard-admin/transactions?limit=${limit}`, {
+      const data = await apiRequest<any>(`/dashboard-admin/transactions?limit=${limit}&filter=${filter}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -252,7 +252,7 @@ export const useApiDashboardAdmin = () => {
       
       if (data.success) {
         setTransactions(data.data.transactions || []);
-        console.log('Dashboard transactions carregadas via API:', data.data.transactions?.length || 0);
+        console.log(`Dashboard transactions carregadas via API (filtro: ${filter}):`, data.data.transactions?.length || 0);
       } else {
         throw new Error(data.message || 'Erro ao carregar transações');
       }
