@@ -534,68 +534,106 @@ const AdminCupons = () => {
                 Nenhum cupom utilizado ainda
               </div>
             ) : (
-              historico.slice(0, 10).map((item) => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <Badge variant="outline" className="font-mono text-xs mb-1">
-                        {item.codigo}
+              historico.slice(0, 20).map((item: any) => (
+                <div key={item.id} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card border-l-4 border-l-purple-500">
+                  {/* Linha 1: Código, Data */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-xs">{item.codigo}</Badge>
+                      <Badge variant={item.tipo === 'fixo' ? 'default' : 'secondary'} className="text-xs">
+                        {item.tipo === 'fixo' ? 'Fixo' : '%'}
                       </Badge>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {item.user_email || `Usuário #${item.user_id}`}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatDate(item.used_at)}
-                      </p>
                     </div>
-                    <span className="text-sm font-bold text-green-600 flex-shrink-0">
-                      {formatBrazilianCurrency(item.valor_desconto)}
-                    </span>
+                    <span className="text-xs text-muted-foreground">{formatDate(item.used_at)}</span>
                   </div>
-                </Card>
+
+                  {/* Linha 2: Usuário + Valor */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <p className="font-semibold text-sm">{item.user_name || item.user_email || `Usuário #${item.user_id}`}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
+                        {item.user_email && <p className="text-xs text-muted-foreground">📧 {item.user_email}</p>}
+                        {item.user_login && <p className="text-xs text-muted-foreground">👤 @{item.user_login}</p>}
+                        {item.user_cpf && <p className="text-xs text-muted-foreground">🪪 CPF: {item.user_cpf}</p>}
+                        {item.user_telefone && <p className="text-xs text-muted-foreground">📱 Tel: {item.user_telefone}</p>}
+                        {item.user_id && <p className="text-xs text-muted-foreground">🔑 ID: {item.user_id}</p>}
+                        {item.user_status && <p className="text-xs text-muted-foreground">📌 Status: <span className="font-medium">{item.user_status}</span></p>}
+                        {item.user_plano && <p className="text-xs text-muted-foreground">📋 Plano: <span className="font-medium">{item.user_plano}</span></p>}
+                        {item.user_codigo_indicacao && <p className="text-xs text-muted-foreground">🎫 Cód: <span className="font-mono">{item.user_codigo_indicacao}</span></p>}
+                        {item.user_saldo !== undefined && item.user_saldo !== null && <p className="text-xs text-muted-foreground">💰 Saldo: <span className="font-mono font-semibold">{formatBrazilianCurrency(item.user_saldo)}</span></p>}
+                        {item.user_saldo_plano !== undefined && item.user_saldo_plano !== null && <p className="text-xs text-muted-foreground">💎 Plano: <span className="font-mono font-semibold">{formatBrazilianCurrency(item.user_saldo_plano)}</span></p>}
+                        {item.user_created_at && <p className="text-xs text-muted-foreground">📅 Cadastro: {formatDate(item.user_created_at)}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right ml-3 flex-shrink-0">
+                      <p className="font-bold text-lg text-green-600">{formatBrazilianCurrency(item.valor_desconto)}</p>
+                      {item.valor_original > 0 && (
+                        <p className="text-[10px] text-muted-foreground">Original: {item.tipo === 'fixo' ? formatBrazilianCurrency(item.valor_original) : `${item.valor_original}%`}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Linha 3: Descrição */}
+                  {item.descricao && (
+                    <div className="pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground">{item.descricao}</p>
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
 
           {/* Desktop Table */}
           {historico.length > 0 ? (
-            <div className="hidden md:block rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Desconto</TableHead>
-                    <TableHead>Data de Uso</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historico.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        <Badge variant="outline" className="font-mono">
-                          {item.codigo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {item.user_email || `Usuário #${item.user_id}`}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={item.tipo === 'fixo' ? 'default' : 'secondary'}>
-                          {item.tipo === 'fixo' ? 'Fixo' : '%'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-green-600">
-                        {formatBrazilianCurrency(item.valor_desconto)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {formatDate(item.used_at)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="hidden md:block space-y-3">
+              {historico.map((item: any) => (
+                <div key={item.id} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card border-l-4 border-l-purple-500">
+                  {/* Linha 1: Código, Tipo, Data */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-xs">{item.codigo}</Badge>
+                      <Badge variant={item.tipo === 'fixo' ? 'default' : 'secondary'} className="text-xs">
+                        {item.tipo === 'fixo' ? 'Fixo' : '%'}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{formatDate(item.used_at)}</span>
+                  </div>
+
+                  {/* Linha 2: Usuário + Valor */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <p className="font-semibold text-sm sm:text-base">{item.user_name || item.user_email || `Usuário #${item.user_id}`}</p>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
+                        {item.user_email && <p className="text-xs text-muted-foreground">📧 {item.user_email}</p>}
+                        {item.user_login && <p className="text-xs text-muted-foreground">👤 @{item.user_login}</p>}
+                        {item.user_cpf && <p className="text-xs text-muted-foreground">🪪 CPF: {item.user_cpf}</p>}
+                        {item.user_telefone && <p className="text-xs text-muted-foreground">📱 Tel: {item.user_telefone}</p>}
+                        {item.user_id && <p className="text-xs text-muted-foreground">🔑 ID: {item.user_id}</p>}
+                        {item.user_status && <p className="text-xs text-muted-foreground">📌 Status: <span className="font-medium">{item.user_status}</span></p>}
+                        {item.user_plano && <p className="text-xs text-muted-foreground">📋 Plano: <span className="font-medium">{item.user_plano}</span></p>}
+                        {item.user_codigo_indicacao && <p className="text-xs text-muted-foreground">🎫 Cód: <span className="font-mono">{item.user_codigo_indicacao}</span></p>}
+                        {item.user_saldo !== undefined && item.user_saldo !== null && <p className="text-xs text-muted-foreground">💰 Saldo: <span className="font-mono font-semibold">{formatBrazilianCurrency(item.user_saldo)}</span></p>}
+                        {item.user_saldo_plano !== undefined && item.user_saldo_plano !== null && <p className="text-xs text-muted-foreground">💎 Plano: <span className="font-mono font-semibold">{formatBrazilianCurrency(item.user_saldo_plano)}</span></p>}
+                        {item.user_created_at && <p className="text-xs text-muted-foreground">📅 Cadastro: {formatDate(item.user_created_at)}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right ml-3 flex-shrink-0">
+                      <p className="font-bold text-lg text-green-600">{formatBrazilianCurrency(item.valor_desconto)}</p>
+                      {item.valor_original > 0 && (
+                        <p className="text-[10px] text-muted-foreground">Original: {item.tipo === 'fixo' ? formatBrazilianCurrency(item.valor_original) : `${item.valor_original}%`}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Linha 3: Descrição */}
+                  {item.descricao && (
+                    <div className="pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground">{item.descricao}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="hidden md:block text-center py-12 text-muted-foreground">
