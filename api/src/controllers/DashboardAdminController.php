@@ -347,8 +347,10 @@ class DashboardAdminController {
                 $query = "SELECT cc.id, cc.transaction_type as type, cc.description, cc.amount,
                             cc.balance_before, cc.balance_after, u.full_name as user_name,
                             u.email as user_email, u.username as user_login, u.id as user_id,
+                            u.cpf as user_cpf, u.telefone as user_telefone,
                             cc.payment_method, cc.created_at, cc.external_id,
-                            'central_cash' as source_table, NULL as module_name
+                            cc.reference_table, cc.reference_id, cc.created_by, cc.metadata,
+                            'central_cash' as source_table
                          FROM central_cash cc
                          LEFT JOIN users u ON cc.user_id = u.id
                          WHERE cc.payment_method IN ('pix', 'credit', 'paypal') AND cc.amount > 0

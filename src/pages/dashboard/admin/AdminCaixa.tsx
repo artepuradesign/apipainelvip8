@@ -100,12 +100,22 @@ const AdminCaixa = () => {
             </div>
           ) : transactions.length > 0 ? (
             <div className="space-y-3">
-              {transactions.slice(0, displayLimit).map((transaction, index) => (
-              <div 
+              {transactions.slice(0, displayLimit).map((transaction, index) => {
+                const tx = transaction as any;
+                let parsedMeta: any = null;
+                try {
+                  if (tx.metadata) {
+                    parsedMeta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : tx.metadata;
+                  }
+                } catch (e) {}
+
+                return (
+                <div 
                   key={transaction.id || index}
-                  className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card"
+                  className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card border-l-4 border-l-green-500"
                 >
-                  <div className="flex items-center justify-between">
+                  {/* Linha 1: ID, Data, Badges */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs font-mono">
                         #{transaction.id || index}
@@ -114,7 +124,7 @@ const AdminCaixa = () => {
                         {formatDate(transaction.created_at)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge variant="default" className="text-xs">
                         {transaction.payment_method?.toUpperCase() || 'N/A'}
                       </Badge>
@@ -124,41 +134,84 @@ const AdminCaixa = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
+                  {/* Linha 2: Usuário + Valor */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0 space-y-0.5">
                       <p className="font-semibold text-sm sm:text-base">
                         {transaction.user_name || 'Usuário não identificado'}
                       </p>
-                      {(transaction as any).user_email && (
-                        <p className="text-xs text-muted-foreground">
-                          📧 {(transaction as any).user_email}
-                        </p>
+                      {tx.user_email && (
+                        <p className="text-xs text-muted-foreground">📧 {tx.user_email}</p>
                       )}
-                      {(transaction as any).user_login && (
-                        <p className="text-xs text-muted-foreground">
-                          👤 @{(transaction as any).user_login}
-                        </p>
+                      {tx.user_login && (
+                        <p className="text-xs text-muted-foreground">👤 @{tx.user_login}</p>
+                      )}
+                      {tx.user_cpf && (
+                        <p className="text-xs text-muted-foreground">🪪 CPF: {tx.user_cpf}</p>
+                      )}
+                      {tx.user_telefone && (
+                        <p className="text-xs text-muted-foreground">📱 {tx.user_telefone}</p>
+                      )}
+                      {tx.user_id && (
+                        <p className="text-xs text-muted-foreground">🔑 User ID: {tx.user_id}</p>
                       )}
                     </div>
-                    <div className="text-right ml-3">
+                    <div className="text-right ml-3 flex-shrink-0">
                       <p className="font-bold text-lg sm:text-xl text-green-600">
                         {formatCurrency(transaction.amount)}
                       </p>
                     </div>
                   </div>
 
+                  {/* Linha 3: Detalhes completos */}
                   <div className="pt-2 border-t border-border/50 space-y-1">
                     <p className="text-xs sm:text-sm text-muted-foreground">
                       {transaction.description}
                     </p>
-                    {(transaction as any).external_id && (
-                      <p className="text-[10px] sm:text-xs text-muted-foreground font-mono">
-                        ID Externo: {(transaction as any).external_id}
-                      </p>
+                    
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
+                      {tx.balance_before !== undefined && tx.balance_before !== null && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          💰 Saldo Antes: <span className="font-mono">{formatCurrency(tx.balance_before)}</span>
+                        </p>
+                      )}
+                      {tx.balance_after !== undefined && tx.balance_after !== null && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          💰 Saldo Depois: <span className="font-mono">{formatCurrency(tx.balance_after)}</span>
+                        </p>
+                      )}
+                      {tx.external_id && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          🔗 ID Externo: <span className="font-mono">{tx.external_id}</span>
+                        </p>
+                      )}
+                      {tx.reference_table && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          📋 Ref: <span className="font-mono">{tx.reference_table}{tx.reference_id ? ` #${tx.reference_id}` : ''}</span>
+                        </p>
+                      )}
+                      {tx.created_by && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          🛠️ Criado por: <span className="font-mono">{tx.created_by}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Metadata */}
+                    {parsedMeta && Object.keys(parsedMeta).length > 0 && (
+                      <div className="pt-1">
+                        <p className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-0.5">📦 Metadata:</p>
+                        <div className="bg-muted/50 rounded p-2 text-[10px] sm:text-xs font-mono text-muted-foreground space-y-0.5">
+                          {Object.entries(parsedMeta).map(([key, value]) => (
+                            <p key={key}>{key}: {String(value)}</p>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {transactions.length > displayLimit && (
                 <div className="text-center pt-2">
