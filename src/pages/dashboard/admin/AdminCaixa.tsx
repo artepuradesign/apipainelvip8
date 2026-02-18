@@ -150,10 +150,13 @@ const AdminCaixa = () => {
                         <p className="text-xs text-muted-foreground">🪪 CPF: {tx.user_cpf}</p>
                       )}
                       {tx.user_telefone && (
-                        <p className="text-xs text-muted-foreground">📱 {tx.user_telefone}</p>
+                        <p className="text-xs text-muted-foreground">📱 Tel: {tx.user_telefone}</p>
                       )}
                       {tx.user_id && (
-                        <p className="text-xs text-muted-foreground">🔑 User ID: {tx.user_id}</p>
+                        <p className="text-xs text-muted-foreground">🔑 ID: {tx.user_id}</p>
+                      )}
+                      {tx.user_status && (
+                        <p className="text-xs text-muted-foreground">📌 Status: {tx.user_status}</p>
                       )}
                     </div>
                     <div className="text-right ml-3 flex-shrink-0">
@@ -170,14 +173,32 @@ const AdminCaixa = () => {
                     </p>
                     
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
-                      {tx.balance_before !== undefined && tx.balance_before !== null && (
+                      {/* Saldo da CARTEIRA do usuário (não do caixa central) */}
+                      {tx.user_balance_before !== undefined && tx.user_balance_before !== null && (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          💰 Saldo Antes: <span className="font-mono">{formatCurrency(tx.balance_before)}</span>
+                          👛 Carteira Antes: <span className="font-mono">{formatCurrency(tx.user_balance_before)}</span>
                         </p>
                       )}
-                      {tx.balance_after !== undefined && tx.balance_after !== null && (
+                      {tx.user_balance_after !== undefined && tx.user_balance_after !== null && (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          💰 Saldo Depois: <span className="font-mono">{formatCurrency(tx.balance_after)}</span>
+                          👛 Carteira Depois: <span className="font-mono">{formatCurrency(tx.user_balance_after)}</span>
+                        </p>
+                      )}
+                      {/* Saldo atual do usuário */}
+                      {tx.user_balance !== undefined && tx.user_balance !== null && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          💰 Saldo Atual: <span className="font-mono font-semibold">{formatCurrency(tx.user_balance)}</span>
+                        </p>
+                      )}
+                      {/* Saldo do caixa central */}
+                      {tx.cash_balance_before !== undefined && tx.cash_balance_before !== null && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          🏦 Caixa Antes: <span className="font-mono">{formatCurrency(tx.cash_balance_before)}</span>
+                        </p>
+                      )}
+                      {tx.cash_balance_after !== undefined && tx.cash_balance_after !== null && (
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                          🏦 Caixa Depois: <span className="font-mono">{formatCurrency(tx.cash_balance_after)}</span>
                         </p>
                       )}
                       {tx.external_id && (
