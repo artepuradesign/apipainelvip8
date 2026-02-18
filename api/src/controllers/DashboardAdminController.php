@@ -349,7 +349,7 @@ class DashboardAdminController {
                             u.full_name as user_name,
                             u.email as user_email, u.username as user_login, u.id as user_id,
                             u.cpf as user_cpf, u.telefone as user_telefone,
-                            u.balance as user_balance, u.status as user_status,
+                            u.saldo as user_balance, u.status as user_status,
                             cc.payment_method, cc.created_at, cc.external_id,
                             cc.reference_table, cc.reference_id, cc.created_by, cc.metadata,
                             wt.balance_before as user_balance_before, wt.balance_after as user_balance_after,
