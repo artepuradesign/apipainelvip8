@@ -407,10 +407,15 @@ class DashboardAdminController {
             } elseif ($filter === 'indicacoes') {
                 $query = "SELECT CONCAT('wt_', wt.id) as id, wt.type, 
                             CONCAT('Bônus de Indicação - ', wt.description) as description,
-                            wt.amount, wt.balance_before, wt.balance_after,
-                            u.full_name as user_name,
+                            wt.amount, wt.balance_before as user_balance_before, wt.balance_after as user_balance_after,
+                            u.full_name as user_name, u.email as user_email, u.username as user_login,
+                            u.id as user_id, u.cpf as user_cpf, u.telefone as user_telefone,
+                            u.saldo as user_saldo, u.saldo_plano as user_saldo_plano,
+                            u.tipoplano as user_plano, u.status as user_status,
+                            u.codigo_indicacao as user_codigo_indicacao, u.created_at as user_created_at,
                             COALESCE(wt.payment_method, 'Sistema') as payment_method,
-                            wt.created_at, 'wallet_transactions' as source_table, NULL as module_name
+                            wt.created_at, wt.reference_id, wt.metadata,
+                            'wallet_transactions' as source_table, NULL as module_name
                          FROM wallet_transactions wt
                          LEFT JOIN users u ON wt.user_id = u.id
                          WHERE wt.type = 'indicacao' AND wt.amount > 0
