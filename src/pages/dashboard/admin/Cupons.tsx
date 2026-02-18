@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Ticket, 
   Plus, 
@@ -367,157 +366,63 @@ const AdminCupons = () => {
             </div>
           </div>
 
-          {/* Lista de Cupons - Mobile Cards */}
-          <div className="md:hidden space-y-3">
-            {filteredCupons.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Ticket className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p className="font-medium text-sm">Nenhum cupom encontrado</p>
-              </div>
-            ) : (
-              filteredCupons.map((cupom) => (
-                <Card key={cupom.id} className="p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {cupom.codigo}
-                        </Badge>
-                        {getStatusBadge(cupom)}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate mb-2">
-                        {cupom.descricao || '-'}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="font-medium">
-                          {cupom.tipo === 'fixo' 
-                            ? formatBrazilianCurrency(cupom.valor)
-                            : `${cupom.valor}%`
-                          }
-                        </span>
-                        <span className="text-muted-foreground">
-                          {cupom.uso_atual}{cupom.uso_limite && `/${cupom.uso_limite}`} usos
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditCupom(cupom)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteCupom(cupom)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
-
-          {/* Lista de Cupons - Desktop Table */}
-          {filteredCupons.length > 0 ? (
-            <div className="hidden md:block rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Usos</TableHead>
-                    <TableHead>Validade</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCupons.map((cupom) => (
-                    <TableRow key={cupom.id}>
-                      <TableCell className="font-medium">
-                        <Badge variant="outline" className="font-mono">
-                          {cupom.codigo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {cupom.descricao || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={cupom.tipo === 'fixo' ? 'default' : 'secondary'}>
-                          {cupom.tipo === 'fixo' ? 'Fixo' : '%'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {cupom.tipo === 'fixo' 
-                          ? formatBrazilianCurrency(cupom.valor)
-                          : `${cupom.valor}%`
-                        }
-                      </TableCell>
-                      <TableCell>{getStatusBadge(cupom)}</TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {cupom.uso_atual}
-                          {cupom.uso_limite && `/${cupom.uso_limite}`}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {cupom.valido_ate ? formatDate(cupom.valido_ate) : 'Sem limite'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditCupom(cupom)}
-                            className="h-8 w-8 p-0"
-                            title="Editar"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleStatus(cupom)}
-                            className="h-8 w-8 p-0"
-                            title={cupom.status === 'ativo' ? 'Desativar' : 'Ativar'}
-                          >
-                            <TrendingUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteCupom(cupom)}
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            title="Deletar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="hidden md:block text-center py-12 text-muted-foreground">
-              <Ticket className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="font-medium">Nenhum cupom encontrado</p>
-              <p className="text-sm mt-2">
+          {/* Lista de Cupons - Cards Responsivos */}
+          {filteredCupons.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Ticket className="h-10 w-10 mx-auto mb-3 opacity-50" />
+              <p className="font-medium text-sm">Nenhum cupom encontrado</p>
+              <p className="text-xs mt-1">
                 {searchTerm || filterStatus !== 'all'
                   ? 'Tente ajustar os filtros de busca'
                   : 'Crie seu primeiro cupom clicando no botão acima'
                 }
               </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredCupons.map((cupom) => (
+                <div key={cupom.id} className="border rounded-lg p-3 sm:p-4 space-y-2 bg-card border-l-4 border-l-blue-500">
+                  {/* Linha 1: Código, Status, Ações */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {cupom.codigo}
+                      </Badge>
+                      {getStatusBadge(cupom)}
+                      <Badge variant={cupom.tipo === 'fixo' ? 'default' : 'secondary'} className="text-xs">
+                        {cupom.tipo === 'fixo' ? 'Fixo' : '%'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditCupom(cupom)} className="h-8 w-8 p-0" title="Editar">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(cupom)} className="h-8 w-8 p-0" title={cupom.status === 'ativo' ? 'Desativar' : 'Ativar'}>
+                        <TrendingUp className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteCupom(cupom)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Deletar">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Linha 2: Descrição + Valor */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs sm:text-sm text-muted-foreground flex-1 min-w-0 truncate pr-3">
+                      {cupom.descricao || '-'}
+                    </p>
+                    <span className="font-bold text-sm sm:text-base text-primary flex-shrink-0">
+                      {cupom.tipo === 'fixo' ? formatBrazilianCurrency(cupom.valor) : `${cupom.valor}%`}
+                    </span>
+                  </div>
+
+                  {/* Linha 3: Usos + Validade */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
+                    <span>📊 {cupom.uso_atual}{cupom.uso_limite ? `/${cupom.uso_limite}` : ''} usos</span>
+                    <span>📅 {cupom.valido_ate ? formatDate(cupom.valido_ate) : 'Sem limite'}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
